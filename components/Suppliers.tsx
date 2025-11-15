@@ -1,6 +1,7 @@
-
 import React from 'react';
-import { mockSuppliers } from '../data/mockData';
+// import { mockSuppliers } from '../data/mockData'; // <-- 1. Ya no importamos mocks
+import { useSelector } from 'react-redux'; // <-- 2. Importar useSelector
+import { RootState } from '../store'; // <-- 3. Importar RootState
 import { Supplier } from '../types';
 import { PlusIcon, SearchIcon } from './Icons';
 
@@ -14,6 +15,9 @@ const StatusBadge: React.FC<{ status: Supplier['status'] }> = ({ status }) => {
 };
 
 const Suppliers: React.FC = () => {
+    // 4. Leer los proveedores desde el store global
+    const mockSuppliers = useSelector((state: RootState) => state.suppliers.suppliers);
+
     return (
         <div className="space-y-6">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -46,6 +50,7 @@ const Suppliers: React.FC = () => {
                             </tr>
                         </thead>
                         <tbody>
+                            {/* 5. Mapear 'mockSuppliers' desde el store */}
                             {mockSuppliers.map(supplier => (
                                 <tr key={supplier.id} className="border-b border-slate-100 hover:bg-slate-50">
                                     <td className="px-4 py-3"><input type="checkbox" /></td>
