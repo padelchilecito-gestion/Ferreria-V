@@ -1,6 +1,7 @@
-
 import React from 'react';
-import { mockChecks } from '../data/mockData';
+// import { mockChecks } from '../data/mockData'; // <-- 1. Ya no importamos mocks
+import { useSelector } from 'react-redux'; // <-- 2. Importar useSelector
+import { RootState } from '../store'; // <-- 3. Importar RootState
 import { Check } from '../types';
 
 const StatusBadge: React.FC<{ status: Check['status'] }> = ({ status }) => {
@@ -14,6 +15,9 @@ const StatusBadge: React.FC<{ status: Check['status'] }> = ({ status }) => {
 };
 
 const Checks: React.FC = () => {
+    // 4. Leer los cheques desde el store global
+    const mockChecks = useSelector((state: RootState) => state.checks.checks);
+
     return (
         <div className="space-y-6">
             <div>
@@ -51,6 +55,7 @@ const Checks: React.FC = () => {
                             </tr>
                         </thead>
                         <tbody>
+                            {/* 5. Mapear 'mockChecks' desde el store */}
                             {mockChecks.map(check => (
                                 <tr key={check.id} className="border-b border-slate-100 hover:bg-slate-50">
                                     <td className="px-4 py-3 font-medium text-slate-700">{check.bank}</td>
