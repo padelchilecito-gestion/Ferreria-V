@@ -1,51 +1,75 @@
-
 import React, { useState } from 'react';
-import { mockProducts, mockCustomers } from '../data/mockData';
+// 1. Ya no importamos mockProducts directamente
+// import { mockProducts, mockCustomers } from '../data/mockData';
+import { mockCustomers } from '../data/mockData'; // Mantenemos mockCustomers por ahora
 import { Product, CartItem, Customer } from '../types';
 import { SearchIcon, TrashIcon, CheckCircleIcon } from './Icons';
 
+// 2. Importar hooks de Redux y nuestros Tipos y Acciones
+import { useSelector, useDispatch } from 'react-redux';
+import { RootState, AppDispatch } from '../store';
+import { addToCart, updateQuantity, removeFromCart, clearCart } from '../store/cartSlice';
+import { reduceStock } from '../store/productsSlice'; // <-- ¡Importante!
+
 const PointOfSale: React.FC = () => {
     const [searchTerm, setSearchTerm] = useState('');
-    const [cart, setCart] = useState<CartItem[]>([]);
+    // 3. El 'cart' ya no se maneja con useState
+    // const [cart, setCart] = useState<CartItem[]>([]);
     const [selectedCustomer, setSelectedCustomer] = useState<string>('final');
     const [priceType, setPriceType] = useState<'retail' | 'wholesale'>('retail');
     const [paymentMethod, setPaymentMethod] = useState<'efectivo' | 'debito' | 'cheque'>('efectivo');
     const [paidAmount, setPaidAmount] = useState(0);
 
-    const filteredProducts = mockProducts.filter(p => 
+    // 4. Obtener el 'dispatch' y leer el estado desde el store de Redux
+    const dispatch = useDispatch<AppDispatch>();
+    const cart = useSelector((state: RootState) => state.cart.items);
+    const allProducts = useSelector((state: RootState) => state.products.products);
+
+    // 5. Los productos filtrados ahora usan 'allProducts' del store
+    const filteredProducts = allProducts.filter(p => 
         p.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
         p.sku.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
-    const addToCart = (product: Product) => {
-        setCart(prevCart => {
-            const existingItem = prevCart.find(item => item.id === product.id);
-            if (existingItem) {
-                return prevCart.map(item =>
-                    item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item
-                );
-            }
-            return [...prevCart, { ...product, quantity: 1 }];
-        });
+    // 6. Las funciones de manipulación del carrito ahora "despachan" acciones
+    const dispatchAddToCart = (product: Product) => {
+        dispatch(addToCart(product));
     };
 
-    const updateQuantity = (productId: string, quantity: number) => {
+    const dispatchUpdateQuantity = (productId: string, quantity: number) => {
         if (quantity <= 0) {
-            removeFromCart(productId);
+            dispatch(removeFromCart(productId));
         } else {
-            setCart(cart.map(item => item.id === productId ? { ...item, quantity } : item));
+            dispatch(updateQuantity({ id: productId, quantity }));
         }
     };
     
-    const removeFromCart = (productId: string) => {
-        setCart(cart.filter(item => item.id !== productId));
+    const dispatchRemoveFromCart = (productId: string) => {
+        dispatch(removeFromCart(productId));
     };
 
+    // 7. Calcular totales (esto sigue igual)
     const subtotal = cart.reduce((acc, item) => acc + (item.retailPrice * item.quantity), 0);
     const tax = subtotal * 0.21; // Assuming 21% IVA
     const total = subtotal + tax;
     const change = paidAmount - total;
 
+    // 8. ¡La magia! Esta función finaliza la venta
+    const handleFinalizeSale = () => {
+        // Despacha la acción 'reduceStock' por CADA item en el carrito
+        cart.forEach(item => {
+            dispatch(reduceStock({ id: item.id, quantity: item.quantity }));
+        });
+        
+        // Despacha la acción para vaciar el carrito
+        dispatch(clearCart());
+        
+        // Resetea el estado local del POS
+        setPaidAmount(0);
+        setSelectedCustomer('final');
+    };
+
+    // 9. El JSX se actualiza para usar las nuevas funciones de dispatch
     return (
         <div className="grid grid-cols-1 lg:grid-cols-10 gap-6 h-[calc(100vh-8rem)]">
             {/* Left Column: Product Catalog */}
@@ -71,8 +95,9 @@ const PointOfSale: React.FC = () => {
                     </div>
                 </div>
                 <div className="flex-1 overflow-y-auto p-4 space-y-2">
+                    {/* Usamos 'filteredProducts' que ahora lee del store */}
                     {filteredProducts.map(product => (
-                        <div key={product.id} onClick={() => addToCart(product)} className="p-3 border rounded-lg flex justify-between items-center hover:bg-blue-50 cursor-pointer transition">
+                        <div key={product.id} onClick={() => dispatchAddToCart(product)} className="p-3 border rounded-lg flex justify-between items-center hover:bg-blue-50 cursor-pointer transition">
                             <div>
                                 <p className="font-semibold text-slate-700">{product.name}</p>
                                 <p className="text-sm text-slate-500">Stock: {product.stock}</p>
@@ -99,6 +124,7 @@ const PointOfSale: React.FC = () => {
                     </div>
                 </div>
                 <div className="flex-1 overflow-y-auto p-4">
+                    {/* Usamos 'cart' que ahora lee del store */}
                     {cart.length === 0 ? (
                         <div className="text-center text-slate-500 pt-10">El carrito está vacío</div>
                     ) : (
@@ -109,9 +135,9 @@ const PointOfSale: React.FC = () => {
                                         <p className="font-medium text-slate-800">{item.name}</p>
                                         <p className="text-sm text-slate-500">${item.retailPrice.toFixed(2)} / unidad</p>
                                     </div>
-                                    <input type="number" value={item.quantity} onChange={(e) => updateQuantity(item.id, parseInt(e.target.value, 10))} className="w-16 text-center border border-slate-300 rounded-md p-1"/>
+                                    <input type="number" value={item.quantity} onChange={(e) => dispatchUpdateQuantity(item.id, parseInt(e.target.value, 10))} className="w-16 text-center border border-slate-300 rounded-md p-1"/>
                                     <p className="w-20 text-right font-semibold">${(item.retailPrice * item.quantity).toFixed(2)}</p>
-                                    <button onClick={() => removeFromCart(item.id)} className="text-red-500 hover:text-red-700">
+                                    <button onClick={() => dispatchRemoveFromCart(item.id)} className="text-red-500 hover:text-red-700">
                                         <TrashIcon className="w-5 h-5" />
                                     </button>
                                 </div>
@@ -169,7 +195,12 @@ const PointOfSale: React.FC = () => {
                 )}
                 <div className="flex-1"></div>
                 <div className="p-4">
-                    <button className="w-full flex items-center justify-center gap-2 bg-green-600 text-white font-bold py-4 rounded-lg hover:bg-green-700 transition shadow-sm disabled:bg-slate-300" disabled={cart.length === 0}>
+                    {/* Usamos la nueva función 'handleFinalizeSale' */}
+                    <button 
+                        onClick={handleFinalizeSale}
+                        className="w-full flex items-center justify-center gap-2 bg-green-600 text-white font-bold py-4 rounded-lg hover:bg-green-700 transition shadow-sm disabled:bg-slate-300" 
+                        disabled={cart.length === 0}
+                    >
                         <CheckCircleIcon className="w-6 h-6" />
                         Finalizar Venta
                     </button>
