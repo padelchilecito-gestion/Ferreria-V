@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
-// import { mockCustomers } from '../data/mockData'; // <-- 1. Ya no importamos los mocks
-import { useSelector } from 'react-redux'; // <-- 2. Importamos useSelector
-import { RootState } from '../store'; // <-- 3. Importamos el tipo de nuestro estado
+import { useSelector } from 'react-redux';
+import { RootState } from '../store';
 import { Customer } from '../types';
 import { PlusIcon, SearchIcon } from './Icons';
+import AddCustomerModal from './AddCustomerModal'; // 1. Importar el modal
 
-// El componente CustomerDetail no necesita cambios, ya que recibe
-// el cliente seleccionado vía props.
+// El componente CustomerDetail no cambia
 const CustomerDetail: React.FC<{ customer: Customer | null }> = ({ customer }) => {
+    // ... (sin cambios) ...
     if (!customer) {
         return (
             <div className="flex-1 flex items-center justify-center bg-slate-50 rounded-lg">
@@ -58,67 +58,74 @@ const CustomerDetail: React.FC<{ customer: Customer | null }> = ({ customer }) =
 };
 
 const Customers: React.FC = () => {
-    // 4. Leemos la lista de clientes desde el store global
     const customers = useSelector((state: RootState) => state.customers.customers);
     
-    // 5. El estado local 'selectedCustomer' se inicializa desde los datos del store
+    // 2. Estado local para controlar la visibilidad del modal
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    
+    // El estado local 'selectedCustomer' se inicializa desde los datos del store
     const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(customers[1] || null);
     
-    // (Aún no usaremos dispatch, pero lo necesitaremos para los botones "Añadir", "Editar", "Eliminar")
-    // const dispatch = useDispatch<AppDispatch>();
-
     return (
-        <div className="space-y-6">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                 <div>
-                    <h1 className="text-2xl font-bold text-slate-800 hidden lg:block">Gestión de Clientes</h1>
-                    <p className="text-slate-500 mt-1">Vea, busque y gestione la información de sus clientes.</p>
+        <> {/* 3. Envolvemos en un Fragment para incluir el Modal */}
+            <div className="space-y-6">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                    <div>
+                        <h1 className="text-2xl font-bold text-slate-800 hidden lg:block">Gestión de Clientes</h1>
+                        <p className="text-slate-500 mt-1">Vea, busque y gestione la información de sus clientes.</p>
+                    </div>
+                    {/* 4. Conectamos el botón para abrir el modal */}
+                    <button 
+                        onClick={() => setIsModalOpen(true)}
+                        className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
+                    >
+                        <PlusIcon className="w-5 h-5" />
+                        Añadir Nuevo Cliente
+                    </button>
                 </div>
-                 <button className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors shadow-sm">
-                    <PlusIcon className="w-5 h-5" />
-                    Añadir Nuevo Cliente
-                </button>
-            </div>
 
-            <div className="flex flex-col lg:flex-row gap-6">
-                <div className="lg:w-2/3 bg-white p-4 rounded-xl shadow-sm">
-                    <div className="relative mb-4">
-                        <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-                        <input type="text" placeholder="Buscar por Nombre, CUIT/DNI..." className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg" />
-                    </div>
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-left">
-                            <thead className="text-xs text-slate-500 uppercase bg-slate-50">
-                                <tr>
-                                    <th className="px-4 py-2">Nombre o Razón Social</th>
-                                    <th className="px-4 py-2">CUIT/DNI</th>
-                                    <th className="px-4 py-2">Teléfono</th>
-                                    <th className="px-4 py-2">Email</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {/* 6. Mapeamos 'customers' (del store) en lugar de 'mockCustomers' */ }
-                                {customers.map(customer => (
-                                    <tr 
-                                        key={customer.id} 
-                                        onClick={() => setSelectedCustomer(customer)}
-                                        className={`border-b border-slate-100 cursor-pointer ${selectedCustomer?.id === customer.id ? 'bg-blue-50' : 'hover:bg-slate-50'}`}
-                                    >
-                                        <td className={`px-4 py-3 font-medium ${selectedCustomer?.id === customer.id ? 'text-blue-700' : 'text-slate-700'}`}>{customer.name}</td>
-                                        <td className="px-4 py-3 text-slate-600">{customer.cuit}</td>
-                                        <td className="px-4 py-3 text-slate-600">{customer.phone}</td>
-                                        <td className="px-4 py-3 text-slate-600">{customer.email}</td>
+                <div className="flex flex-col lg:flex-row gap-6">
+                    <div className="lg:w-2/3 bg-white p-4 rounded-xl shadow-sm">
+                        <div className="relative mb-4">
+                            <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+                            <input type="text" placeholder="Buscar por Nombre, CUIT/DNI..." className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg" />
+                        </div>
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-left">
+                                <thead className="text-xs text-slate-500 uppercase bg-slate-50">
+                                    <tr>
+                                        <th className="px-4 py-2">Nombre o Razón Social</th>
+                                        <th className="px-4 py-2">CUIT/DNI</th>
+                                        <th className="px-4 py-2">Teléfono</th>
+                                        <th className="px-4 py-2">Email</th>
                                     </tr>
-                                ))}
-                            </tbody>
-                        </table>
+                                </thead>
+                                <tbody>
+                                    {customers.map(customer => (
+                                        <tr 
+                                            key={customer.id} 
+                                            onClick={() => setSelectedCustomer(customer)}
+                                            className={`border-b border-slate-100 cursor-pointer ${selectedCustomer?.id === customer.id ? 'bg-blue-50' : 'hover:bg-slate-50'}`}
+                                        >
+                                            <td className={`px-4 py-3 font-medium ${selectedCustomer?.id === customer.id ? 'text-blue-700' : 'text-slate-700'}`}>{customer.name}</td>
+                                            <td className="px-4 py-3 text-slate-600">{customer.cuit}</td>
+                                            <td className="px-4 py-3 text-slate-600">{customer.phone}</td>
+                                            <td className="px-4 py-3 text-slate-600">{customer.email}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
-                </div>
-                <div className="lg:w-1/3">
-                    <CustomerDetail customer={selectedCustomer} />
+                    <div className="lg:w-1/3">
+                        <CustomerDetail customer={selectedCustomer} />
+                    </div>
                 </div>
             </div>
-        </div>
+            
+            {/* 5. Renderizamos el modal aquí */}
+            <AddCustomerModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
+        </>
     );
 };
 
