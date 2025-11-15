@@ -1,6 +1,7 @@
-
 import React from 'react';
-import { mockProducts } from '../data/mockData';
+// import { mockProducts } from '../data/mockData'; // <-- 1. Ya no importamos los mocks
+import { useSelector } from 'react-redux'; // <-- 2. Importamos useSelector
+import { RootState } from '../store'; // <-- 3. Importamos el tipo de nuestro estado
 import { PlusIcon } from './Icons';
 
 const StockBadge: React.FC<{ stock: number; minStock: number }> = ({ stock, minStock }) => {
@@ -15,6 +16,9 @@ const StockBadge: React.FC<{ stock: number; minStock: number }> = ({ stock, minS
 
 
 const Inventory: React.FC = () => {
+    // 4. Leemos los productos desde el store global de Redux
+    const mockProducts = useSelector((state: RootState) => state.products.products);
+
     return (
         <div className="space-y-6">
             <div>
@@ -62,6 +66,7 @@ const Inventory: React.FC = () => {
                             </tr>
                         </thead>
                         <tbody>
+                            {/* 5. El resto del componente funciona igual, pero ahora 'mockProducts' viene del store */ }
                             {mockProducts.map(product => (
                                 <tr key={product.id} className="border-b border-slate-100 hover:bg-slate-50">
                                     <td className="px-4 py-3"><input type="checkbox" /></td>
