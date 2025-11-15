@@ -1,9 +1,12 @@
-
 import React from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { TrendUpIcon, UserGroupIcon, AlertTriangleIcon, PlusIcon, CheckCircleIcon, DocumentTextIcon, CubeIcon } from './Icons';
-import { mockProducts, salesData } from '../data/mockData';
+// 1. Ya no importamos 'mockProducts', solo 'salesData'
+import { salesData } from '../data/mockData';
 import { ViewType } from '../App';
+// 2. Importamos useSelector y RootState
+import { useSelector } from 'react-redux';
+import { RootState } from '../store';
 
 const StatCard: React.FC<{ title: string; value: string; change: string; isPositive: boolean; icon: React.ElementType }> = ({ title, value, change, isPositive, icon: Icon }) => (
     <div className="bg-white p-5 rounded-xl shadow-sm flex-1">
@@ -26,7 +29,12 @@ const StatCard: React.FC<{ title: string; value: string; change: string; isPosit
 );
 
 const Dashboard: React.FC<{setActiveView: (view: ViewType) => void}> = ({ setActiveView }) => {
-    const lowStockProducts = mockProducts.filter(p => p.stock <= p.minStock).slice(0, 3);
+    // 3. Leemos los productos y clientes desde el store global
+    const allProducts = useSelector((state: RootState) => state.products.products);
+    const allCustomers = useSelector((state: RootState) => state.customers.customers);
+
+    // 4. Calculamos los productos con bajo stock usando los datos del store
+    const lowStockProducts = allProducts.filter(p => p.stock <= p.minStock).slice(0, 3);
 
     return (
         <div className="space-y-6">
@@ -48,10 +56,12 @@ const Dashboard: React.FC<{setActiveView: (view: ViewType) => void}> = ({ setAct
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
+                {/* 5. Los datos de ventas siguen siendo estáticos por ahora */}
                 <StatCard title="Ventas del Día" value="$1,250.75" change="+5.2%" isPositive={true} icon={TrendUpIcon} />
                 <StatCard title="Ganancia Estimada" value="$480.50" change="+3.1%" isPositive={true} icon={TrendUpIcon} />
-                <StatCard title="Nuevos Clientes" value="6" change="Hoy" isPositive={true} icon={UserGroupIcon} />
-                <StatCard title="Poco Stock" value="12" change="Productos críticos" isPositive={false} icon={AlertTriangleIcon} />
+                {/* 6. Estos datos ahora son dinámicos desde el store */}
+                <StatCard title="Nuevos Clientes" value={allCustomers.length.toString()} change="Hoy" isPositive={true} icon={UserGroupIcon} />
+                <StatCard title="Poco Stock" value={lowStockProducts.length.toString()} change="Productos críticos" isPositive={false} icon={AlertTriangleIcon} />
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -73,6 +83,7 @@ const Dashboard: React.FC<{setActiveView: (view: ViewType) => void}> = ({ setAct
                 <div className="bg-white p-5 rounded-xl shadow-sm">
                     <h2 className="text-lg font-semibold text-slate-800 mb-4">Alertas y Notificaciones</h2>
                     <ul className="space-y-4">
+                        {/* 7. Estas alertas aún son estáticas. Podríamos conectarlas al 'checksSlice' luego */}
                         <li className="flex items-start gap-3">
                             <div className="mt-1 flex-shrink-0"><CheckCircleIcon className="w-5 h-5 text-yellow-500" /></div>
                             <div>
@@ -113,6 +124,7 @@ const Dashboard: React.FC<{setActiveView: (view: ViewType) => void}> = ({ setAct
                             </tr>
                         </thead>
                         <tbody>
+                            {/* 8. Esta tabla ahora se actualiza sola si el stock cambia */}
                             {lowStockProducts.map(product => (
                                 <tr key={product.id} className="border-b border-slate-100">
                                     <td className="px-4 py-3 font-medium text-slate-700">{product.name}</td>
