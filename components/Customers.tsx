@@ -1,9 +1,12 @@
-
 import React, { useState } from 'react';
-import { mockCustomers } from '../data/mockData';
+// import { mockCustomers } from '../data/mockData'; // <-- 1. Ya no importamos los mocks
+import { useSelector } from 'react-redux'; // <-- 2. Importamos useSelector
+import { RootState } from '../store'; // <-- 3. Importamos el tipo de nuestro estado
 import { Customer } from '../types';
 import { PlusIcon, SearchIcon } from './Icons';
 
+// El componente CustomerDetail no necesita cambios, ya que recibe
+// el cliente seleccionado vía props.
 const CustomerDetail: React.FC<{ customer: Customer | null }> = ({ customer }) => {
     if (!customer) {
         return (
@@ -55,7 +58,14 @@ const CustomerDetail: React.FC<{ customer: Customer | null }> = ({ customer }) =
 };
 
 const Customers: React.FC = () => {
-    const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(mockCustomers[1]);
+    // 4. Leemos la lista de clientes desde el store global
+    const customers = useSelector((state: RootState) => state.customers.customers);
+    
+    // 5. El estado local 'selectedCustomer' se inicializa desde los datos del store
+    const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(customers[1] || null);
+    
+    // (Aún no usaremos dispatch, pero lo necesitaremos para los botones "Añadir", "Editar", "Eliminar")
+    // const dispatch = useDispatch<AppDispatch>();
 
     return (
         <div className="space-y-6">
@@ -87,7 +97,8 @@ const Customers: React.FC = () => {
                                 </tr>
                             </thead>
                             <tbody>
-                                {mockCustomers.map(customer => (
+                                {/* 6. Mapeamos 'customers' (del store) en lugar de 'mockCustomers' */ }
+                                {customers.map(customer => (
                                     <tr 
                                         key={customer.id} 
                                         onClick={() => setSelectedCustomer(customer)}
