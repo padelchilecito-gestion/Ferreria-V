@@ -1,9 +1,11 @@
-import React, { useState } from 'react'; // 1. Importar useState
-import { useSelector } from 'react-redux';
-import { RootState } from '../store';
+import React, { useState } from 'react';
+import { useSelector, useDispatch } from 'react-redux'; // 1. Importar hooks
+import { RootState, AppDispatch } from '../store';
 import { Supplier } from '../types';
-import { PlusIcon, SearchIcon } from './Icons';
-import AddSupplierModal from './AddSupplierModal'; // 2. Importar el modal
+import { PlusIcon, SearchIcon, TrashIcon } from './Icons'; // 2. Importar TrashIcon
+import { deleteSupplier } from '../store/suppliersSlice'; // 3. Importar acción
+import AddSupplierModal from './AddSupplierModal'; // 4. Importar modales
+import EditSupplierModal from './EditSupplierModal';
 
 const StatusBadge: React.FC<{ status: Supplier['status'] }> = ({ status }) => {
     // ... (sin cambios) ...
@@ -16,22 +18,38 @@ const StatusBadge: React.FC<{ status: Supplier['status'] }> = ({ status }) => {
 };
 
 const Suppliers: React.FC = () => {
-    const mockSuppliers = useSelector((state: RootState) => state.suppliers.suppliers);
+    // 5. Leer datos desde Redux
+    const suppliers = useSelector((state: RootState) => state.suppliers.suppliers);
+    const dispatch = useDispatch<AppDispatch>();
 
-    // 3. Estado local para el modal
-    const [isModalOpen, setIsModalOpen] = useState(false);
+    // 6. Estado local para manejar los modales y el proveedor seleccionado
+    const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    const [currentSupplier, setCurrentSupplier] = useState<Supplier | null>(null);
+
+    // 7. Funciones para manejar los eventos
+    const handleEdit = (supplier: Supplier) => {
+        setCurrentSupplier(supplier);
+        setIsEditModalOpen(true);
+    };
+
+    const handleDelete = (supplierId: string, supplierName: string) => {
+        if (window.confirm(`¿Está seguro de que desea eliminar a ${supplierName}?`)) {
+            dispatch(deleteSupplier(supplierId));
+        }
+    };
 
     return (
-        <> {/* 4. Envolvemos en un Fragment */}
+        <> {/* 8. Envolvemos en un Fragment */}
             <div className="space-y-6">
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                     <div>
                         <h1 className="text-2xl font-bold text-slate-800 hidden lg:block">Gestión de Proveedores</h1>
                         <p className="text-slate-500 mt-1">Administre la información y el estado de sus proveedores.</p>
                     </div>
-                    {/* 5. Conectamos el botón para abrir el modal */}
+                    {/* 9. Conectar botón de "Agregar" */}
                     <button 
-                        onClick={() => setIsModalOpen(true)}
+                        onClick={() => setIsAddModalOpen(true)}
                         className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
                     >
                         <PlusIcon className="w-5 h-5" />
@@ -48,25 +66,37 @@ const Suppliers: React.FC = () => {
                         <table className="w-full text-left">
                             <thead className="text-xs text-slate-500 uppercase bg-slate-50">
                                 <tr>
-                                    <th className="px-4 py-3"><input type="checkbox" /></th>
                                     <th className="px-4 py-3">Nombre o Razón Social</th>
                                     <th className="px-4 py-3">CUIT/DNI</th>
                                     <th className="px-4 py-3">Teléfono</th>
                                     <th className="px-4 py-3">Email</th>
                                     <th className="px-4 py-3">Status</th>
-                                    <th className="px-4 py-3">Actions</th>
+                                    <th className="px-4 py-3">Acciones</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {mockSuppliers.map(supplier => (
+                                {/* 10. Mapear desde 'suppliers' del store y agregar botones */}
+                                {suppliers.map(supplier => (
                                     <tr key={supplier.id} className="border-b border-slate-100 hover:bg-slate-50">
-                                        <td className="px-4 py-3"><input type="checkbox" /></td>
                                         <td className="px-4 py-3 font-medium text-slate-700">{supplier.name}</td>
                                         <td className="px-4 py-3 text-slate-600">{supplier.cuit}</td>
                                         <td className="px-4 py-3 text-slate-600">{supplier.phone}</td>
                                         <td className="px-4 py-3 text-slate-600">{supplier.email}</td>
                                         <td className="px-4 py-3"><StatusBadge status={supplier.status} /></td>
-                                        <td className="px-4 py-3 text-center">...</td>
+                                        <td className="px-4 py-3 text-center">
+                                            <button 
+                                                onClick={() => handleEdit(supplier)}
+                                                className="text-blue-600 hover:text-blue-800 px-2"
+                                            >
+                                                Editar
+                                            </button>
+                                            <button 
+                                                onClick={() => handleDelete(supplier.id, supplier.name)}
+                                                className="text-red-600 hover:text-red-800 px-2"
+                                            >
+                                                <TrashIcon className="w-4 h-4 inline-block" />
+                                            </button>
+                                        </td>
                                     </tr>
                                 ))}
                             </tbody>
@@ -83,9 +113,14 @@ const Suppliers: React.FC = () => {
                     </div>
                 </div>
             </div>
-
-            {/* 6. Renderizamos el modal */}
-            <AddSupplierModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
+            
+            {/* 11. Renderizar ambos modales */}
+            <AddSupplierModal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} />
+            <EditSupplierModal 
+                isOpen={isEditModalOpen} 
+                onClose={() => setIsEditModalOpen(false)} 
+                supplier={currentSupplier} 
+            />
         </>
     );
 };
