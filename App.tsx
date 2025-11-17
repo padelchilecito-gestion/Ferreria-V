@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import Sidebar from './components/Sidebar';
 import Dashboard from './components/Dashboard';
@@ -9,9 +8,11 @@ import Suppliers from './components/Suppliers';
 import Checks from './components/Checks';
 import Reports from './components/Reports';
 import Settings from './components/Settings';
+import Purchases from './components/Purchases'; // 1. Importar el nuevo componente
 import { MenuIcon } from './components/Icons';
 
-export type ViewType = 'dashboard' | 'sales' | 'inventory' | 'customers' | 'suppliers' | 'checks' | 'reports' | 'settings';
+// 2. Añadir 'purchases' al ViewType
+export type ViewType = 'dashboard' | 'sales' | 'inventory' | 'customers' | 'suppliers' | 'purchases' | 'checks' | 'reports' | 'settings';
 
 const App: React.FC = () => {
   const [activeView, setActiveView] = useState<ViewType>('dashboard');
@@ -29,6 +30,9 @@ const App: React.FC = () => {
         return <Customers />;
       case 'suppliers':
         return <Suppliers />;
+      // 3. Añadir el caso para 'purchases'
+      case 'purchases':
+        return <Purchases />;
       case 'checks':
         return <Checks />;
       case 'reports':
@@ -40,12 +44,14 @@ const App: React.FC = () => {
     }
   };
 
+  // 4. Añadir el título para la nueva vista
   const viewTitles: Record<ViewType, string> = {
     dashboard: 'Bienvenido, Gerente',
     sales: 'Punto de Venta (POS)',
     inventory: 'Gestión de Inventario',
     customers: 'Gestión de Clientes',
     suppliers: 'Gestión de Proveedores',
+    purchases: 'Gestión de Compras', // <-- NUEVO
     checks: 'Gestión de Cartera de Cheques',
     reports: 'Reportes y Estadísticas',
     settings: 'Configuración',
