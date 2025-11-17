@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react'; // 1. Importar useEffect
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState, AppDispatch } from '../store';
 import { Customer } from '../types';
@@ -7,7 +7,7 @@ import AddCustomerModal from './AddCustomerModal';
 import EditCustomerModal from './EditCustomerModal';
 import { deleteCustomer } from '../store/customersSlice';
 
-// 1. Definir items por página
+// 2. Definir items por página
 const ITEMS_PER_PAGE = 10;
 
 interface CustomerDetailProps {
@@ -87,19 +87,8 @@ const Customers: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   
-  // 2. Estado para la paginación
+  // 3. Estado para la paginación
   const [currentPage, setCurrentPage] = useState(1);
-
-  // Seleccionar el primer cliente de la lista filtrada si 'selectedCustomer' es null
-  // Esto es para que el panel de detalle no quede vacío al cambiar de filtro
-  const getFirstCustomer = (list: Customer[]) => {
-    if (!selectedCustomer && list.length > 0) {
-      setSelectedCustomer(list[0]);
-    } else if (selectedCustomer && !list.find(c => c.id === selectedCustomer.id)) {
-      // Si el cliente seleccionado ya no está en la lista filtrada, seleccionar el primero
-      setSelectedCustomer(list.length > 0 ? list[0] : null);
-    }
-  };
 
   const handleEdit = () => {
     if (!selectedCustomer) return;
@@ -115,6 +104,7 @@ const Customers: React.FC = () => {
     }
   };
 
+  // 4. Lógica de filtrado (sin cambios)
   const filteredCustomers = customers.filter(c => {
     const matchesSearch = c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                           c.cuit.toLowerCase().includes(searchTerm.toLowerCase());
@@ -122,27 +112,29 @@ const Customers: React.FC = () => {
     return matchesSearch && matchesStatus;
   });
 
-  // 3. Lógica de paginación
+  // 5. Lógica de paginación
   const totalPages = Math.ceil(filteredCustomers.length / ITEMS_PER_PAGE);
   const paginatedCustomers = filteredCustomers.slice(
       (currentPage - 1) * ITEMS_PER_PAGE,
       currentPage * ITEMS_PER_PAGE
   );
 
-  // Sincronizar selección con paginación/filtros
-  React.useEffect(() => {
-    // Si la lista paginada no incluye al cliente seleccionado,
-    // o si no hay cliente seleccionado, seleccionar el primero de la página actual.
+  // 6. Efecto para resetear la página a 1 si cambian los filtros
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, statusFilter]);
+
+  // 7. Efecto para sincronizar el cliente seleccionado con la paginación/filtros
+  useEffect(() => {
     const currentSelectionInPage = paginatedCustomers.find(c => c.id === selectedCustomer?.id);
+    
+    // Si el cliente seleccionado no está en la página actual (o no hay ninguno),
+    // seleccionar el primero de la lista paginada.
     if (!currentSelectionInPage) {
         setSelectedCustomer(paginatedCustomers.length > 0 ? paginatedCustomers[0] : null);
     }
   }, [currentPage, paginatedCustomers, selectedCustomer]);
 
-  React.useEffect(() => {
-    // Resetear página a 1 cuando cambian los filtros
-    setCurrentPage(1);
-  }, [searchTerm, statusFilter]);
 
   const handlePageChange = (newPage: number) => {
       if (newPage >= 1 && newPage <= totalPages) {
@@ -202,7 +194,7 @@ const Customers: React.FC = () => {
                                   </tr>
                               </thead>
                               <tbody>
-                                  {/* 4. Mapear sobre paginatedCustomers */}
+                                  {/* 8. Mapear sobre paginatedCustomers */}
                                   {paginatedCustomers.map(customer => (
                                       <tr 
                                           key={customer.id} 
@@ -219,10 +211,10 @@ const Customers: React.FC = () => {
                           </table>
                       </div>
 
-                      {/* 5. Controles de Paginación */}
+                      {/* 9. Controles de Paginación */}
                       <div className="flex justify-between items-center mt-4 text-sm">
                           <span className="text-slate-600">
-                              Mostrando {Math.min((currentPage - 1) * ITEMS_PER_PAGE + 1, filteredCustomers.length)} - {Math.min(currentPage * ITEMS_PER_PAGE, filteredCustomers.length)} de {filteredCustomers.length} clientes
+                              Mostrando {Math.min((currentPage - 1) * ITEMS_PER_PAGE + 1, filteredCustomers.length) || 0} - {Math.min(currentPage * ITEMS_PER_PAGE, filteredCustomers.length)} de {filteredCustomers.length} clientes
                           </span>
                           <div className="flex gap-2">
                               <button
