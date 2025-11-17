@@ -1,5 +1,4 @@
-// components/PointOfSale.tsx
-import React, { useState, useMemo } from 'react'; // 1. Importar useMemo
+import React, { useState, useMemo } from 'react';
 import { Product, CartItem, Customer, Sale } from '../types';
 import { SearchIcon, TrashIcon, CheckCircleIcon } from './Icons';
 import { useSelector, useDispatch } from 'react-redux';
@@ -16,27 +15,24 @@ const PointOfSale: React.FC = () => {
     const [priceType, setPriceType] = useState<'retail' | 'wholesale'>('retail');
     const [paymentMethod, setPaymentMethod] = useState<'efectivo' | 'debito' | 'cheque' | 'cuenta corriente'>('efectivo');
     const [paidAmount, setPaidAmount] = useState(0);
-
-    // 2. Estado para el filtro de categoría
     const [categoryFilter, setCategoryFilter] = useState('all');
 
     const dispatch = useDispatch<AppDispatch>();
     const cart = useSelector((state: RootState) => state.cart.items);
     const allProducts = useSelector((state: RootState) => state.products.products);
     const allCustomers = useSelector((state: RootState) => state.customers.customers);
+    
+    // 1. Leer la tasa de IVA desde el store
+    const taxRate = useSelector((state: RootState) => state.settings.taxRate);
 
-    // 3. Obtener categorías únicas (igual que en Inventory.tsx)
     const uniqueCategories = useMemo(() => {
         return [...new Set(allProducts.map(p => p.category).filter(Boolean))];
     }, [allProducts]);
 
-    // 4. Lógica de filtrado combinada
     const filteredProducts = allProducts.filter(p => {
         const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
                               p.sku.toLowerCase().includes(searchTerm.toLowerCase());
-        
         const matchesCategory = categoryFilter === 'all' || p.category === categoryFilter;
-        
         return matchesSearch && matchesCategory;
     });
 
@@ -44,7 +40,6 @@ const PointOfSale: React.FC = () => {
     const dispatchAddToCart = (product: Product) => {
         dispatch(addToCart(product));
     };
-
     const dispatchUpdateQuantity = (productId: string, quantity: number) => {
         if (quantity <= 0) {
             dispatch(removeFromCart(productId));
@@ -52,14 +47,16 @@ const PointOfSale: React.FC = () => {
             dispatch(updateQuantity({ id: productId, quantity }));
         }
     };
-    
     const dispatchRemoveFromCart = (productId: string) => {
         dispatch(removeFromCart(productId));
     };
     // --- Fin Funciones del carrito ---
 
     const subtotal = cart.reduce((acc, item) => acc + (item.retailPrice * item.quantity), 0);
-    const tax = subtotal * 0.21; // <-- ¡Esto sigue hardcodeado! Lo arreglaremos después.
+    
+    // 2. Calcular el IVA usando la tasa del store
+    const tax = subtotal * taxRate;
+    
     const total = subtotal + tax;
     
     const getPaidAmount = () => {
@@ -74,7 +71,6 @@ const PointOfSale: React.FC = () => {
     const finalPaidAmount = getPaidAmount();
     const dueAmount = total - finalPaidAmount;
     const change = finalPaidAmount > total ? finalPaidAmount - total : 0;
-
 
     const handleFinalizeSale = () => {
         const customerName = selectedCustomer === 'final'
@@ -96,15 +92,12 @@ const PointOfSale: React.FC = () => {
         };
 
         dispatch(addSale(newSale));
-
         cart.forEach(item => {
             dispatch(reduceStock({ id: item.id, quantity: item.quantity }));
         });
-
         if (selectedCustomer !== 'final' && dueAmount !== 0) {
             dispatch(updateCustomerBalance({ customerId: selectedCustomer, dueAmount: dueAmount }));
         }
-        
         dispatch(clearCart());
         setPaidAmount(0);
         setSelectedCustomer('final');
@@ -113,7 +106,7 @@ const PointOfSale: React.FC = () => {
 
     return (
         <div className="grid grid-cols-1 lg:grid-cols-10 gap-6 h-[calc(100vh-8rem)]">
-            {/* Columna Izquierda: Catálogo (Actualizado) */}
+            {/* --- Columna Izquierda: Catálogo (sin cambios) --- */}
             <div className="lg:col-span-3 bg-white rounded-xl shadow-sm flex flex-col">
                 <div className="p-4 border-b">
                     <h2 className="text-lg font-bold text-slate-800">Búsqueda y Catálogo</h2>
@@ -128,7 +121,6 @@ const PointOfSale: React.FC = () => {
                         />
                     </div>
                 </div>
-                {/* 5. Filtros de Categoría Dinámicos */}
                 <div className="p-4 overflow-x-auto">
                     <div className="flex gap-2 mb-4 whitespace-nowrap">
                         <button 
@@ -149,7 +141,6 @@ const PointOfSale: React.FC = () => {
                     </div>
                 </div>
                 <div className="flex-1 overflow-y-auto p-4 space-y-2">
-                    {/* 6. Usar filteredProducts (ya estaba hecho) */}
                     {filteredProducts.map(product => (
                         <div key={product.id} onClick={() => dispatchAddToCart(product)} className="p-3 border rounded-lg flex justify-between items-center hover:bg-blue-50 cursor-pointer transition">
                             <div>
@@ -162,7 +153,7 @@ const PointOfSale: React.FC = () => {
                 </div>
             </div>
 
-            {/* Columna Central: Carrito (sin cambios) */}
+            {/* --- Columna Central: Carrito (Actualizada) --- */}
             <div className="lg:col-span-4 bg-white rounded-xl shadow-sm flex flex-col">
                 <div className="p-4 border-b">
                     <h2 className="text-lg font-bold text-slate-800">Carrito de Compra</h2>
@@ -209,7 +200,8 @@ const PointOfSale: React.FC = () => {
                             <span className="font-medium text-slate-800">$0.00</span>
                         </div>
                          <div className="flex justify-between">
-                            <span className="text-slate-600">IVA (21%)</span>
+                            {/* 3. Mostrar la tasa de IVA dinámica */}
+                            <span className="text-slate-600">IVA ({(taxRate * 100).toFixed(0)}%)</span>
                             <span className="font-medium text-slate-800">${tax.toFixed(2)}</span>
                         </div>
                         <div className="flex justify-between text-lg font-bold border-t pt-2 mt-2">
@@ -220,7 +212,7 @@ const PointOfSale: React.FC = () => {
                 </div>
             </div>
 
-            {/* Columna Derecha: Pago (sin cambios) */}
+            {/* --- Columna Derecha: Pago (sin cambios) --- */}
             <div className="lg:col-span-3 bg-white rounded-xl shadow-sm flex flex-col">
                 <div className="p-4 border-b">
                     <h2 className="text-lg font-bold text-slate-800">Finalización y Métodos de Pago</h2>
