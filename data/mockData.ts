@@ -1,4 +1,3 @@
-
 import { Product, Customer, Supplier, Check } from '../types';
 
 export const mockProducts: Product[] = [
@@ -19,13 +18,15 @@ export const mockCustomers: Customer[] = [
     { id: '4', name: 'El Martillo Feliz SRL', cuit: '33-87654321-0', phone: '11-5555-4321', email: 'compras@elmartillofeliz.com', address: 'Ruta 9 Km 50, Pilar', accountStatus: 'Active', balance: -320.00 },
 ];
 
+// --- INICIO DE MODIFICACIÓN ---
 export const mockSuppliers: Supplier[] = [
-    { id: '1', name: 'Ferretería Industrial S.A.', cuit: '30-12345678-9', phone: '+54 11 4567-8901', email: 'contacto@ferreteriaindustrial.com', status: 'Active' },
-    { id: '2', name: 'Juan Pérez', cuit: '20-98765432-1', phone: '+54 11 4567-8901', email: 'juan.perez@proveedor.com', status: 'Active' },
-    { id: '3', name: 'Distribuidora Central', cuit: '33-55555555-5', phone: '+54 11 2345-6789', email: 'ventas@distribuidoracentral.com', status: 'Inactive' },
-    { id: '4', name: 'Materiales del Sur S.R.L.', cuit: '30-11223344-5', phone: '+54 11 9876-5432', email: 'info@materialesdelsur.com', status: 'Active' },
-    { id: '5', name: 'Herramientas Total', cuit: '30-66778899-0', phone: '+54 11 5555-1234', email: 'soporte@herramientastotal.com', status: 'Pending' },
+    { id: '1', name: 'Ferretería Industrial S.A.', cuit: '30-12345678-9', phone: '+54 11 4567-8901', email: 'contacto@ferreteriaindustrial.com', status: 'Active', balance: 0 },
+    { id: '2', name: 'Juan Pérez', cuit: '20-98765432-1', phone: '+54 11 4567-8901', email: 'juan.perez@proveedor.com', status: 'Active', balance: 150.00 }, // Ejemplo de saldo deudor
+    { id: '3', name: 'Distribuidora Central', cuit: '33-55555555-5', phone: '+54 11 2345-6789', email: 'ventas@distribuidoracentral.com', status: 'Inactive', balance: 0 },
+    { id: '4', name: 'Materiales del Sur S.R.L.', cuit: '30-11223344-5', phone: '+54 11 9876-5432', email: 'info@materialesdelsur.com', status: 'Active', balance: 850.20 }, // Ejemplo de saldo deudor
+    { id: '5', name: 'Herramientas Total', cuit: '30-66778899-0', phone: '+54 11 5555-1234', email: 'soporte@herramientastotal.com', status: 'Pending', balance: 0 },
 ];
+// --- FIN DE MODIFICACIÓN ---
 
 export const mockChecks: Check[] = [
     { id: '1', bank: 'Galicia', number: '4532', issueDate: '2023-10-15', dueDate: '2023-11-15', amount: 15000, status: 'En cartera', issuer: 'Constructora S.A.' },
