@@ -1,4 +1,4 @@
-import React, { useState } from 'react'; // 1. Importar useState
+import React, { useState } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState, AppDispatch } from '../store';
 import { Supplier } from '../types';
@@ -20,8 +20,9 @@ const Suppliers: React.FC = () => {
     const suppliers = useSelector((state: RootState) => state.suppliers.suppliers);
     const dispatch = useDispatch<AppDispatch>();
 
-    // 2. Estado para la búsqueda
     const [searchTerm, setSearchTerm] = useState('');
+    // 1. Estado para el filtro de estado
+    const [statusFilter, setStatusFilter] = useState('all');
 
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -38,11 +39,15 @@ const Suppliers: React.FC = () => {
         }
     };
 
-    // 3. Filtramos los proveedores
-    const filteredSuppliers = suppliers.filter(s => 
-        s.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-        s.cuit.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    // 2. Filtramos los proveedores (combinando búsqueda y filtro)
+    const filteredSuppliers = suppliers.filter(s => {
+        const matchesSearch = s.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                              s.cuit.toLowerCase().includes(searchTerm.toLowerCase());
+        
+        const matchesStatus = statusFilter === 'all' || s.status === statusFilter;
+
+        return matchesSearch && matchesStatus;
+    });
 
     return (
         <> 
@@ -62,17 +67,30 @@ const Suppliers: React.FC = () => {
                 </div>
 
                 <div className="bg-white p-4 rounded-xl shadow-sm">
-                    <div className="relative mb-4">
-                        <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-                        {/* 4. Conectamos el input al estado */}
-                        <input 
-                            type="text" 
-                            placeholder="Buscar por Nombre, CUIT/DNI..." 
-                            className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg"
-                            value={searchTerm}
-                            onChange={e => setSearchTerm(e.target.value)}
-                        />
+                    {/* 3. Contenedor para los filtros */}
+                    <div className="flex flex-col sm:flex-row gap-4 mb-4">
+                        <div className="relative flex-1">
+                            <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+                            <input 
+                                type="text" 
+                                placeholder="Buscar por Nombre, CUIT/DNI..." 
+                                className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg"
+                                value={searchTerm}
+                                onChange={e => setSearchTerm(e.target.value)}
+                            />
+                        </div>
+                        <select 
+                            className="p-2 border border-slate-300 rounded-lg"
+                            value={statusFilter}
+                            onChange={e => setStatusFilter(e.target.value)}
+                        >
+                            <option value="all">Estado (Todos)</option>
+                            <option value="Active">Activo</option>
+                            <option value="Inactive">Inactivo</option>
+                            <option value="Pending">Pendiente</option>
+                        </select>
                     </div>
+
                     <div className="overflow-x-auto">
                         <table className="w-full text-left">
                             <thead className="text-xs text-slate-500 uppercase bg-slate-50">
@@ -86,7 +104,7 @@ const Suppliers: React.FC = () => {
                                 </tr>
                             </thead>
                             <tbody>
-                                {/* 5. Mapeamos sobre filteredSuppliers */}
+                                {/* 4. Mapear sobre filteredSuppliers */}
                                 {filteredSuppliers.map(supplier => (
                                     <tr key={supplier.id} className="border-b border-slate-100 hover:bg-slate-50">
                                         <td className="px-4 py-3 font-medium text-slate-700">{supplier.name}</td>
@@ -113,15 +131,7 @@ const Suppliers: React.FC = () => {
                             </tbody>
                         </table>
                     </div>
-                    <div className="flex justify-center items-center gap-2 mt-4 text-sm">
-                        <button className="px-3 py-1 border rounded-md">&lt;</button>
-                        <button className="px-3 py-1 border rounded-md bg-blue-600 text-white">1</button>
-                        <button className="px-3 py-1 border rounded-md">2</button>
-                        <button className="px-3 py-1 border rounded-md">3</button>
-                        <span>...</span>
-                        <button className="px-3 py-1 border rounded-md">10</button>
-                        <button className="px-3 py-1 border rounded-md">&gt;</button>
-                    </div>
+                    {/* ... (Paginación estática, la dejamos para después) ... */}
                 </div>
             </div>
             
