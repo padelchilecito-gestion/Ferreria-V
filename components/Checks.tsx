@@ -1,11 +1,11 @@
 // components/Checks.tsx
-import React, { useState } from 'react';
-import { useSelector, useDispatch } from 'react-redux'; // 1. Importar hooks
+import React, { useState } from 'react'; // 1. Importar useState
+import { useSelector, useDispatch } from 'react-redux';
 import { RootState, AppDispatch } from '../store';
 import { Check } from '../types';
-import { PlusIcon, PencilIcon } from './Icons'; // 2. Importar iconos
-import AddCheckModal from './AddCheckModal'; // 3. Importar modales
-import UpdateCheckStatusModal from './UpdateCheckStatusModal'; // 4. Importar modal de actualización
+import { PlusIcon, PencilIcon } from './Icons';
+import AddCheckModal from './AddCheckModal';
+import UpdateCheckStatusModal from './UpdateCheckStatusModal';
 
 const StatusBadge: React.FC<{ status: Check['status'] }> = ({ status }) => {
     const styles = {
@@ -18,23 +18,29 @@ const StatusBadge: React.FC<{ status: Check['status'] }> = ({ status }) => {
 };
 
 const Checks: React.FC = () => {
-    // 5. Leer cheques desde el store global
     const checks = useSelector((state: RootState) => state.checks.checks);
-    const dispatch = useDispatch<AppDispatch>(); // (No lo usamos aquí, pero es buena práctica)
+    const dispatch = useDispatch<AppDispatch>(); 
 
-    // 6. Estado local para AMBOS modales
+    // 2. Estado para la búsqueda
+    const [searchTerm, setSearchTerm] = useState('');
+
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
     const [currentCheck, setCurrentCheck] = useState<Check | null>(null);
 
-    // 7. Función para abrir el modal de actualización
     const handleUpdateStatus = (check: Check) => {
         setCurrentCheck(check);
         setIsUpdateModalOpen(true);
     };
 
+    // 3. Filtramos los cheques
+    const filteredChecks = checks.filter(c => 
+        c.issuer.toLowerCase().includes(searchTerm.toLowerCase()) || 
+        c.number.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
     return (
-        <> {/* 8. Envolver en Fragment */}
+        <> 
             <div className="space-y-6">
                 <div>
                     <h1 className="text-2xl font-bold text-slate-800 hidden lg:block">Gestión de Cartera de Cheques</h1>
@@ -43,7 +49,14 @@ const Checks: React.FC = () => {
 
                 <div className="bg-white p-4 rounded-xl shadow-sm">
                     <div className="flex flex-col md:flex-row justify-between items-center gap-4 mb-4">
-                        <input type="text" placeholder="Buscar por número o emisor..." className="w-full md:w-1/3 p-2 border border-slate-300 rounded-lg" />
+                        {/* 4. Conectamos el input al estado */}
+                        <input 
+                            type="text" 
+                            placeholder="Buscar por número o emisor..." 
+                            className="w-full md:w-1/3 p-2 border border-slate-300 rounded-lg"
+                            value={searchTerm}
+                            onChange={e => setSearchTerm(e.target.value)}
+                        />
                         <div className="flex gap-2 w-full md:w-auto">
                             <select className="p-2 border border-slate-300 rounded-lg">
                                 <option>Filtrar por estado</option>
@@ -54,7 +67,6 @@ const Checks: React.FC = () => {
                             </select>
                             <input type="date" className="p-2 border border-slate-300 rounded-lg" />
                         </div>
-                        {/* 9. Botón para añadir cheque */}
                         <button 
                             onClick={() => setIsAddModalOpen(true)}
                             className="w-full md:w-auto whitespace-nowrap flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
@@ -79,8 +91,8 @@ const Checks: React.FC = () => {
                                 </tr>
                             </thead>
                             <tbody>
-                                {/* 10. Mapear desde 'checks' (del store) */}
-                                {checks.map(check => (
+                                {/* 5. Mapeamos sobre filteredChecks */}
+                                {filteredChecks.map(check => (
                                     <tr key={check.id} className="border-b border-slate-100 hover:bg-slate-50">
                                         <td className="px-4 py-3 font-medium text-slate-700">{check.bank}</td>
                                         <td className="px-4 py-3 text-slate-600">{check.number}</td>
@@ -89,7 +101,6 @@ const Checks: React.FC = () => {
                                         <td className="px-4 py-3 text-slate-600 font-medium">{check.dueDate}</td>
                                         <td className="px-4 py-3 font-semibold text-slate-800">${check.amount.toLocaleString('es-AR')}</td>
                                         <td className="px-4 py-3"><StatusBadge status={check.status} /></td>
-                                        {/* 11. Botón de acción (para actualizar estado) */}
                                         <td className="px-4 py-3 text-center">
                                             <button 
                                                 onClick={() => handleUpdateStatus(check)}
@@ -107,7 +118,6 @@ const Checks: React.FC = () => {
                 </div>
             </div>
 
-            {/* 12. Renderizar ambos modales */}
             <AddCheckModal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} />
             <UpdateCheckStatusModal 
                 isOpen={isUpdateModalOpen} 
