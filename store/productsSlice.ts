@@ -18,14 +18,12 @@ export const productsSlice = createSlice({
     addProduct: (state, action: PayloadAction<Product>) => {
       state.products.push(action.payload);
     },
-    // 1. Añadir acción de actualizar
     updateProduct: (state, action: PayloadAction<Product>) => {
       const index = state.products.findIndex(p => p.id === action.payload.id);
       if (index !== -1) {
         state.products[index] = action.payload;
       }
     },
-    // 2. Añadir acción de eliminar
     deleteProduct: (state, action: PayloadAction<string>) => {
       state.products = state.products.filter(p => p.id !== action.payload);
     },
@@ -35,10 +33,20 @@ export const productsSlice = createSlice({
         product.stock -= action.payload.quantity;
       }
     },
+    // --- INICIO DE NUEVO CÓDIGO ---
+    adjustStock: (state, action: PayloadAction<{ id: string; newStock: number }>) => {
+      // Esta acción establece un valor de stock específico
+      const { id, newStock } = action.payload;
+      const product = state.products.find(p => p.id === id);
+      if (product) {
+        product.stock = newStock;
+      }
+    },
+    // --- FIN DE NUEVO CÓDIGO ---
   },
 });
 
 // 3. Exportar las nuevas acciones
-export const { addProduct, updateProduct, deleteProduct, reduceStock } = productsSlice.actions;
+export const { addProduct, updateProduct, deleteProduct, reduceStock, adjustStock } = productsSlice.actions;
 
 export default productsSlice.reducer;
