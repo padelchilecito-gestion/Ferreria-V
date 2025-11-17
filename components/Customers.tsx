@@ -1,22 +1,24 @@
-import React, { useState, useEffect } from 'react'; // 1. Importar useEffect
+import React, { useState, useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState, AppDispatch } from '../store';
 import { Customer } from '../types';
-import { PlusIcon, SearchIcon } from './Icons';
+import { PlusIcon, SearchIcon, CurrencyDollarIcon } from './Icons'; // 1. Importar CurrencyDollarIcon
 import AddCustomerModal from './AddCustomerModal';
 import EditCustomerModal from './EditCustomerModal';
 import { deleteCustomer } from '../store/customersSlice';
+import AddPaymentModal from './AddPaymentModal'; // 2. Importar el nuevo modal de Pago
 
-// 2. Definir items por página
 const ITEMS_PER_PAGE = 10;
 
+// 3. Añadir 'onAddPayment' a las props
 interface CustomerDetailProps {
   customer: Customer | null;
   onEdit: () => void;
   onDelete: () => void;
+  onAddPayment: () => void; // <-- NUEVO
 }
 
-const CustomerDetail: React.FC<CustomerDetailProps> = ({ customer, onEdit, onDelete }) => {
+const CustomerDetail: React.FC<CustomerDetailProps> = ({ customer, onEdit, onDelete, onAddPayment }) => {
   if (!customer) {
       return (
           <div className="flex-1 flex items-center justify-center bg-slate-50 rounded-lg">
@@ -25,7 +27,8 @@ const CustomerDetail: React.FC<CustomerDetailProps> = ({ customer, onEdit, onDel
       );
   }
 
-  // (El contenido de CustomerDetail no cambia)
+  const hasDebt = customer.balance > 0;
+
   return (
       <div className="flex-1 bg-white p-6 rounded-xl shadow-sm">
           <div className="flex items-center gap-4 pb-6 border-b">
@@ -36,6 +39,7 @@ const CustomerDetail: React.FC<CustomerDetailProps> = ({ customer, onEdit, onDel
               </div>
           </div>
           <div className="py-6 space-y-4">
+              {/* ... (campos de email, teléfono, dirección, estado sin cambios) ... */}
               <div className="flex items-center">
                   <span className="w-24 font-medium text-sm text-slate-500">Email</span>
                   <span className="text-slate-700">{customer.email}</span>
@@ -56,23 +60,37 @@ const CustomerDetail: React.FC<CustomerDetailProps> = ({ customer, onEdit, onDel
               </div>
               <div className="flex items-center">
                   <span className="w-24 font-medium text-sm text-slate-500">Saldo</span>
-                  <span className={`text-lg font-bold ${customer.balance > 0 ? 'text-red-600' : 'text-slate-700'}`}>${customer.balance.toFixed(2)}</span>
+                  <span className={`text-lg font-bold ${hasDebt ? 'text-red-600' : 'text-slate-700'}`}>
+                    ${customer.balance.toFixed(2)}
+                    {hasDebt ? ' (Debe)' : (customer.balance < 0 ? ' (A favor)' : '')}
+                  </span>
               </div>
           </div>
-           <div className="flex gap-2">
+           {/* 4. Botones de acción actualizados */}
+           <div className="space-y-2">
               <button 
-                onClick={onEdit}
-                className="flex-1 py-2 border border-slate-300 rounded-lg text-slate-700 hover:bg-slate-50"
+                onClick={onAddPayment}
+                className="w-full flex items-center justify-center gap-2 py-2 border border-green-600 bg-green-50 rounded-lg text-green-700 hover:bg-green-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={!hasDebt} // Deshabilitar si no hay deuda
               >
-                Editar
+                <CurrencyDollarIcon className="w-5 h-5" />
+                Registrar Pago
               </button>
-              <button 
-                onClick={onDelete}
-                className="flex-1 py-2 bg-red-50 border border-red-200 rounded-lg text-red-600 hover:bg-red-100"
-              >
-                Eliminar
-              </button>
-          </div>
+              <div className="flex gap-2">
+                <button 
+                  onClick={onEdit}
+                  className="flex-1 py-2 border border-slate-300 rounded-lg text-slate-700 hover:bg-slate-50"
+                >
+                  Editar
+                </button>
+                <button 
+                  onClick={onDelete}
+                  className="flex-1 py-2 bg-red-50 border border-red-200 rounded-lg text-red-600 hover:bg-red-100"
+                >
+                  Eliminar
+                </button>
+              </div>
+           </div>
       </div>
   );
 };
@@ -83,11 +101,12 @@ const Customers: React.FC = () => {
 
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null); // Iniciar sin cliente seleccionado
+  // 5. Estado para el nuevo modal de pago
+  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
-  
-  // 3. Estado para la paginación
   const [currentPage, setCurrentPage] = useState(1);
 
   const handleEdit = () => {
@@ -97,14 +116,18 @@ const Customers: React.FC = () => {
 
   const handleDelete = () => {
     if (!selectedCustomer) return;
-    
     if (window.confirm(`¿Está seguro de que desea eliminar a ${selectedCustomer.name}?`)) {
       dispatch(deleteCustomer(selectedCustomer.id));
       setSelectedCustomer(null);
     }
   };
 
-  // 4. Lógica de filtrado (sin cambios)
+  // 6. Manejador para abrir el modal de pago
+  const handleAddPayment = () => {
+    if (!selectedCustomer) return;
+    setIsPaymentModalOpen(true);
+  };
+
   const filteredCustomers = customers.filter(c => {
     const matchesSearch = c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                           c.cuit.toLowerCase().includes(searchTerm.toLowerCase());
@@ -112,29 +135,22 @@ const Customers: React.FC = () => {
     return matchesSearch && matchesStatus;
   });
 
-  // 5. Lógica de paginación
   const totalPages = Math.ceil(filteredCustomers.length / ITEMS_PER_PAGE);
   const paginatedCustomers = filteredCustomers.slice(
       (currentPage - 1) * ITEMS_PER_PAGE,
       currentPage * ITEMS_PER_PAGE
   );
 
-  // 6. Efecto para resetear la página a 1 si cambian los filtros
   useEffect(() => {
     setCurrentPage(1);
   }, [searchTerm, statusFilter]);
 
-  // 7. Efecto para sincronizar el cliente seleccionado con la paginación/filtros
   useEffect(() => {
     const currentSelectionInPage = paginatedCustomers.find(c => c.id === selectedCustomer?.id);
-    
-    // Si el cliente seleccionado no está en la página actual (o no hay ninguno),
-    // seleccionar el primero de la lista paginada.
     if (!currentSelectionInPage) {
         setSelectedCustomer(paginatedCustomers.length > 0 ? paginatedCustomers[0] : null);
     }
   }, [currentPage, paginatedCustomers, selectedCustomer]);
-
 
   const handlePageChange = (newPage: number) => {
       if (newPage >= 1 && newPage <= totalPages) {
@@ -194,7 +210,6 @@ const Customers: React.FC = () => {
                                   </tr>
                               </thead>
                               <tbody>
-                                  {/* 8. Mapear sobre paginatedCustomers */}
                                   {paginatedCustomers.map(customer => (
                                       <tr 
                                           key={customer.id} 
@@ -211,7 +226,6 @@ const Customers: React.FC = () => {
                           </table>
                       </div>
 
-                      {/* 9. Controles de Paginación */}
                       <div className="flex justify-between items-center mt-4 text-sm">
                           <span className="text-slate-600">
                               Mostrando {Math.min((currentPage - 1) * ITEMS_PER_PAGE + 1, filteredCustomers.length) || 0} - {Math.min(currentPage * ITEMS_PER_PAGE, filteredCustomers.length)} de {filteredCustomers.length} clientes
@@ -236,20 +250,28 @@ const Customers: React.FC = () => {
 
                   </div>
                   <div className="lg:w-1/3">
+                      {/* 7. Pasar el nuevo manejador al detalle */}
                       <CustomerDetail 
                         customer={selectedCustomer} 
                         onEdit={handleEdit}
                         onDelete={handleDelete}
+                        onAddPayment={handleAddPayment}
                       />
                   </div>
               </div>
           </div>
           
+          {/* 8. Renderizar los 3 modales */}
           <AddCustomerModal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} />
           <EditCustomerModal 
             isOpen={isEditModalOpen} 
             onClose={() => setIsEditModalOpen(false)} 
             customer={selectedCustomer} 
+          />
+          <AddPaymentModal
+            isOpen={isPaymentModalOpen}
+            onClose={() => setIsPaymentModalOpen(false)}
+            customer={selectedCustomer}
           />
       </>
   );
