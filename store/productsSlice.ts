@@ -42,20 +42,25 @@ export const productsSlice = createSlice({
         product.stock = newStock;
       }
     },
-    // --- INICIO DE NUEVO CÓDIGO ---
-    // Esta acción es para COMPRAS (suma stock)
-    increaseStock: (state, action: PayloadAction<{ productId: string; quantity: number }>) => {
-      const { productId, quantity } = action.payload;
+    // --- INICIO DE MODIFICACIÓN ---
+    // Esta acción es para COMPRAS (suma stock y actualiza costo)
+    increaseStock: (state, action: PayloadAction<{ productId: string; quantity: number; newCostPrice?: number }>) => {
+      const { productId, quantity, newCostPrice } = action.payload;
       const product = state.products.find(p => p.id === productId);
       if (product) {
+        // 1. Aumentar el stock
         product.stock += quantity;
+        
+        // 2. Actualizar el precio de costo si se proporcionó y es diferente
+        if (newCostPrice !== undefined && newCostPrice !== product.costPrice) {
+          product.costPrice = newCostPrice;
+        }
       }
     },
-    // --- FIN DE NUEVO CÓDIGO ---
+    // --- FIN DE MODIFICACIÓN ---
   },
 });
 
-// 3. Exportar las nuevas acciones
 export const { addProduct, updateProduct, deleteProduct, reduceStock, adjustStock, increaseStock } = productsSlice.actions;
 
 export default productsSlice.reducer;
