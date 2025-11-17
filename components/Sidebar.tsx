@@ -1,9 +1,9 @@
-
 import React from 'react';
 import { ViewType } from '../App';
 import { 
     DashboardIcon, SalesIcon, InventoryIcon, CustomersIcon, SuppliersIcon, 
-    ReportsIcon, SettingsIcon, LogoutIcon, ChecksIcon, CubeIcon 
+    ReportsIcon, SettingsIcon, LogoutIcon, ChecksIcon, CubeIcon,
+    ShoppingBagIcon // 1. Importar el ícono
 } from './Icons';
 
 interface SidebarProps {
@@ -14,12 +14,14 @@ interface SidebarProps {
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ activeView, setActiveView, isOpen, setOpen }) => {
+  // 2. Añadir "Compras" a la lista de navegación
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: DashboardIcon },
     { id: 'sales', label: 'Ventas', icon: SalesIcon },
     { id: 'inventory', label: 'Inventario', icon: InventoryIcon },
     { id: 'customers', label: 'Clientes', icon: CustomersIcon },
     { id: 'suppliers', label: 'Proveedores', icon: SuppliersIcon },
+    { id: 'purchases', label: 'Compras', icon: ShoppingBagIcon }, // <-- NUEVO
     { id: 'checks', label: 'Cheques', icon: ChecksIcon },
     { id: 'reports', label: 'Reportes', icon: ReportsIcon },
   ];
