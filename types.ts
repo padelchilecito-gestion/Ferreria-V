@@ -7,6 +7,7 @@ export interface Product {
   minStock: number;
   costPrice: number;
   retailPrice: number;
+  wholesalePrice: number; // <-- NUEVO CAMPO
   category: string;
 }
 
@@ -21,7 +22,6 @@ export interface Customer {
   balance: number;
 }
 
-// --- INICIO DE MODIFICACIÓN 1 ---
 export interface Supplier {
   id: string;
   name: string;
@@ -29,9 +29,8 @@ export interface Supplier {
   phone: string;
   email: string;
   status: 'Active' | 'Inactive' | 'Pending';
-  balance: number; // Saldo que adeudamos al proveedor
+  balance: number;
 }
-// --- FIN DE MODIFICACIÓN 1 ---
 
 export interface Check {
     id: string;
@@ -49,7 +48,7 @@ export interface CartItem extends Product {
 }
 
 export interface SaleItem extends CartItem {
-  // (Sin cambios)
+  // (No necesita cambios, hereda 'wholesalePrice' de Product)
 }
 
 export interface Sale {
@@ -66,13 +65,11 @@ export interface Sale {
   dueAmount: number;
 }
 
-// --- INICIO DE NUEVO CÓDIGO ---
-
 export interface PurchaseItem {
   productId: string;
-  name: string; // Guardamos el nombre al momento de la compra
+  name: string;
   quantity: number;
-  costPrice: number; // Precio de costo al momento de la compra
+  costPrice: number;
 }
 
 export interface Purchase {
@@ -80,10 +77,8 @@ export interface Purchase {
   date: string;
   supplierId: string;
   supplierName: string;
-  invoiceNumber: string; // Número de factura/remito del proveedor
+  invoiceNumber: string;
   items: PurchaseItem[];
   total: number;
   status: 'Pendiente de pago' | 'Pagada';
 }
-
-// --- FIN DE NUEVO CÓDIGO ---
