@@ -1,3 +1,4 @@
+// types.ts
 export interface Product {
   id: string;
   sku: string;
@@ -48,7 +49,7 @@ export interface CartItem extends Product {
 }
 
 export interface SaleItem extends CartItem {
-  // (No necesita cambios, hereda 'wholesalePrice' de Product)
+  // No necesita cambios, hereda 'wholesalePrice' de Product
 }
 
 export interface Sale {
