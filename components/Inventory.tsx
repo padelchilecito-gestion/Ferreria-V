@@ -9,6 +9,7 @@ import EditProductModal from './EditProductModal'; // 3. Importar modal de edici
 import { deleteProduct } from '../store/productsSlice'; // 4. Importar acción de eliminar
 
 const StockBadge: React.FC<{ stock: number; minStock: number }> = ({ stock, minStock }) => {
+    // ... (sin cambios) ...
     if (stock === 0) {
         return <span className="bg-red-100 text-red-800 text-xs font-medium px-2.5 py-0.5 rounded-full">Sin Stock</span>;
     }
@@ -41,7 +42,7 @@ const Inventory: React.FC = () => {
     };
     
     return (
-        <> {/* 4. Envolvemos en un Fragment */}
+        <> 
             <div className="space-y-6">
                 <div>
                     <h1 className="text-2xl font-bold text-slate-800 hidden lg:block">Gestión de Inventario</h1>
@@ -80,7 +81,7 @@ const Inventory: React.FC = () => {
                         <table className="w-full text-left">
                             <thead className="text-xs text-slate-500 uppercase bg-slate-50">
                                 <tr>
-                                    {/* Eliminamos el checkbox por simplicidad */}
+                                    <th className="px-4 py-3"><input type="checkbox" /></th>
                                     <th className="px-4 py-3">Código/SKU</th>
                                     <th className="px-4 py-3">Nombre</th>
                                     <th className="px-4 py-3">Proveedor</th>
@@ -91,9 +92,9 @@ const Inventory: React.FC = () => {
                                 </tr>
                             </thead>
                             <tbody>
-                                {/* 8. Mapear desde 'products' y agregar botones de acción */}
                                 {products.map(product => (
                                     <tr key={product.id} className="border-b border-slate-100 hover:bg-slate-50">
+                                        <td className="px-4 py-3"><input type="checkbox" /></td>
                                         <td className="px-4 py-3 font-medium text-slate-700">{product.sku}</td>
                                         <td className="px-4 py-3 text-slate-800">{product.name}</td>
                                         <td className="px-4 py-3 text-slate-600">{product.supplier}</td>
