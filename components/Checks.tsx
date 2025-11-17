@@ -7,6 +7,9 @@ import { PlusIcon, PencilIcon } from './Icons';
 import AddCheckModal from './AddCheckModal';
 import UpdateCheckStatusModal from './UpdateCheckStatusModal';
 
+// 1. Definir items por página
+const ITEMS_PER_PAGE = 10;
+
 const StatusBadge: React.FC<{ status: Check['status'] }> = ({ status }) => {
     const styles = {
         'En cartera': 'bg-blue-100 text-blue-800',
@@ -23,10 +26,11 @@ const Checks: React.FC = () => {
 
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState('all');
-    
-    // 1. Estados para el rango de fechas (Vencimiento)
     const [startDateFilter, setStartDateFilter] = useState('');
     const [endDateFilter, setEndDateFilter] = useState('');
+
+    // 2. Estado para paginación
+    const [currentPage, setCurrentPage] = useState(1);
 
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
@@ -37,19 +41,32 @@ const Checks: React.FC = () => {
         setIsUpdateModalOpen(true);
     };
 
-    // 2. Lógica de filtrado combinada (incluyendo fechas)
     const filteredChecks = checks.filter(c => {
         const matchesSearch = c.issuer.toLowerCase().includes(searchTerm.toLowerCase()) || 
                               c.number.toLowerCase().includes(searchTerm.toLowerCase());
-        
         const matchesStatus = statusFilter === 'all' || c.status === statusFilter;
-        
-        // Comparamos los strings 'YYYY-MM-DD'. Funciona bien para este formato.
         const matchesStartDate = !startDateFilter || c.dueDate >= startDateFilter;
         const matchesEndDate = !endDateFilter || c.dueDate <= endDateFilter;
-        
         return matchesSearch && matchesStatus && matchesStartDate && matchesEndDate;
     });
+
+    // 3. Lógica de paginación
+    const totalPages = Math.ceil(filteredChecks.length / ITEMS_PER_PAGE);
+    const paginatedChecks = filteredChecks.slice(
+        (currentPage - 1) * ITEMS_PER_PAGE,
+        currentPage * ITEMS_PER_PAGE
+    );
+
+    const handlePageChange = (newPage: number) => {
+        if (newPage >= 1 && newPage <= totalPages) {
+            setCurrentPage(newPage);
+        }
+    };
+
+    // Resetear página a 1 cuando cambian los filtros
+    React.useEffect(() => {
+        setCurrentPage(1);
+    }, [searchTerm, statusFilter, startDateFilter, endDateFilter]);
 
     return (
         <> 
@@ -68,7 +85,6 @@ const Checks: React.FC = () => {
                             value={searchTerm}
                             onChange={e => setSearchTerm(e.target.value)}
                         />
-                        {/* 3. Inputs de filtro actualizados */}
                         <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
                             <select 
                                 className="p-2 border border-slate-300 rounded-lg"
@@ -120,8 +136,8 @@ const Checks: React.FC = () => {
                                 </tr>
                             </thead>
                             <tbody>
-                                {/* 4. Mapear sobre filteredChecks */}
-                                {filteredChecks.map(check => (
+                                {/* 4. Mapear sobre paginatedChecks */}
+                                {paginatedChecks.map(check => (
                                     <tr key={check.id} className="border-b border-slate-100 hover:bg-slate-50">
                                         <td className="px-4 py-3 font-medium text-slate-700">{check.bank}</td>
                                         <td className="px-4 py-3 text-slate-600">{check.number}</td>
@@ -144,6 +160,30 @@ const Checks: React.FC = () => {
                             </tbody>
                         </table>
                     </div>
+
+                    {/* 5. Controles de Paginación */}
+                    <div className="flex justify-between items-center mt-4 text-sm">
+                        <span className="text-slate-600">
+                            Mostrando {Math.min((currentPage - 1) * ITEMS_PER_PAGE + 1, filteredChecks.length)} - {Math.min(currentPage * ITEMS_PER_PAGE, filteredChecks.length)} de {filteredChecks.length} cheques
+                        </span>
+                        <div className="flex gap-2">
+                            <button
+                                onClick={() => handlePageChange(currentPage - 1)}
+                                disabled={currentPage === 1}
+                                className="px-3 py-1 border rounded-md bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                &lt; Anterior
+                            </button>
+                            <button
+                                onClick={() => handlePageChange(currentPage + 1)}
+                                disabled={currentPage === totalPages || totalPages === 0}
+                                className="px-3 py-1 border rounded-md bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                Siguiente &gt;
+                            </button>
+                        </div>
+                    </div>
+
                 </div>
             </div>
 
