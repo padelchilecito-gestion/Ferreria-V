@@ -23,6 +23,8 @@ const AddProductModal: React.FC<AddProductModalProps> = ({ isOpen, onClose }) =>
   const [minStock, setMinStock] = useState(0);
   const [costPrice, setCostPrice] = useState(0);
   const [retailPrice, setRetailPrice] = useState(0);
+  // 1. Añadir estado para precio mayorista
+  const [wholesalePrice, setWholesalePrice] = useState(0);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -33,16 +35,16 @@ const AddProductModal: React.FC<AddProductModalProps> = ({ isOpen, onClose }) =>
       sku,
       category,
       supplier,
-      // Aseguramos que los valores sean numéricos
       stock: Number(stock) || 0,
       minStock: Number(minStock) || 0,
       costPrice: Number(costPrice) || 0,
       retailPrice: Number(retailPrice) || 0,
+      wholesalePrice: Number(wholesalePrice) || 0, // 2. Añadir al nuevo producto
     };
 
     dispatch(addProduct(newProduct));
     
-    // Limpiar formulario y cerrar
+    // 3. Limpiar formulario y cerrar
     onClose();
     setName('');
     setSku('');
@@ -52,6 +54,7 @@ const AddProductModal: React.FC<AddProductModalProps> = ({ isOpen, onClose }) =>
     setMinStock(0);
     setCostPrice(0);
     setRetailPrice(0);
+    setWholesalePrice(0); // 4. Resetear estado
   };
 
   if (!isOpen) {
@@ -141,7 +144,8 @@ const AddProductModal: React.FC<AddProductModalProps> = ({ isOpen, onClose }) =>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* 5. Añadir campo de Precio Mayorista */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <label className="text-sm font-medium text-slate-600">Precio de Costo</label>
                 <input
@@ -159,6 +163,16 @@ const AddProductModal: React.FC<AddProductModalProps> = ({ isOpen, onClose }) =>
                   step="0.01"
                   value={retailPrice}
                   onChange={e => setRetailPrice(Number(e.target.value))}
+                  className="w-full mt-1 p-2 border border-slate-300 rounded-lg"
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium text-slate-600">Precio Mayorista</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={wholesalePrice}
+                  onChange={e => setWholesalePrice(Number(e.target.value))}
                   className="w-full mt-1 p-2 border border-slate-300 rounded-lg"
                 />
               </div>
