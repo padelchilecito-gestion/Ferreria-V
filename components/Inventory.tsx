@@ -1,5 +1,5 @@
 // components/Inventory.tsx
-import React, { useState } from 'react'; // 1. Importar useState
+import React, { useState, useMemo } from 'react'; // 1. Importar useMemo
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState, AppDispatch } from '../store';
 import { Product } from '../types';
@@ -23,12 +23,25 @@ const Inventory: React.FC = () => {
     const products = useSelector((state: RootState) => state.products.products);
     const dispatch = useDispatch<AppDispatch>(); 
 
-    // 2. Estado para la búsqueda
     const [searchTerm, setSearchTerm] = useState('');
+    // 2. Estados para los filtros <select>
+    const [categoryFilter, setCategoryFilter] = useState('all');
+    const [supplierFilter, setSupplierFilter] = useState('all');
+    const [stockLevelFilter, setStockLevelFilter] = useState('all');
 
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [currentProduct, setCurrentProduct] = useState<Product | null>(null);
+
+    // 3. Obtenemos listas únicas para los filtros (con useMemo para eficiencia)
+    const uniqueCategories = useMemo(() => {
+        return [...new Set(products.map(p => p.category).filter(Boolean))];
+    }, [products]);
+
+    const uniqueSuppliers = useMemo(() => {
+        return [...new Set(products.map(p => p.supplier).filter(Boolean))];
+    }, [products]);
+
 
     const handleEdit = (product: Product) => {
         setCurrentProduct(product);
@@ -41,11 +54,26 @@ const Inventory: React.FC = () => {
         }
     };
     
-    // 3. Filtramos los productos basándonos en el searchTerm
-    const filteredProducts = products.filter(p => 
-        p.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-        p.sku.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    // 4. Lógica de filtrado combinada
+    const filteredProducts = products.filter(p => {
+        // Filtro de búsqueda de texto
+        const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                              p.sku.toLowerCase().includes(searchTerm.toLowerCase());
+        
+        // Filtro de Categoría
+        const matchesCategory = categoryFilter === 'all' || p.category === categoryFilter;
+
+        // Filtro de Proveedor
+        const matchesSupplier = supplierFilter === 'all' || p.supplier === supplierFilter;
+
+        // Filtro de Nivel de Stock
+        const matchesStockLevel = stockLevelFilter === 'all' ||
+            (stockLevelFilter === 'low' && p.stock <= p.minStock && p.stock > 0) ||
+            (stockLevelFilter === 'out' && p.stock === 0) ||
+            (stockLevelFilter === 'high' && p.stock > p.minStock);
+        
+        return matchesSearch && matchesCategory && matchesSupplier && matchesStockLevel;
+    });
 
     return (
         <> 
@@ -58,7 +86,6 @@ const Inventory: React.FC = () => {
                 <div className="bg-white p-4 rounded-xl shadow-sm">
                     <div className="flex flex-col md:flex-row justify-between items-center gap-4">
                         <div className="w-full md:w-1/3">
-                            {/* 4. Conectamos el input al estado */}
                             <input 
                                 type="text" 
                                 placeholder="Buscar por Nombre o SKU..." 
@@ -67,15 +94,33 @@ const Inventory: React.FC = () => {
                                 onChange={e => setSearchTerm(e.target.value)}
                             />
                         </div>
+                        {/* 5. Conectar los <select> a sus estados y llenarlos dinámicamente */}
                         <div className="flex gap-2 w-full md:w-auto">
-                            <select className="p-2 border border-slate-300 rounded-lg">
-                                <option>Categoría</option>
+                            <select 
+                                className="p-2 border border-slate-300 rounded-lg"
+                                value={categoryFilter}
+                                onChange={e => setCategoryFilter(e.target.value)}
+                            >
+                                <option value="all">Categoría (Todas)</option>
+                                {uniqueCategories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
                             </select>
-                             <select className="p-2 border border-slate-300 rounded-lg">
-                                <option>Proveedor</option>
+                             <select 
+                                className="p-2 border border-slate-300 rounded-lg"
+                                value={supplierFilter}
+                                onChange={e => setSupplierFilter(e.target.value)}
+                             >
+                                <option value="all">Proveedor (Todos)</option>
+                                {uniqueSuppliers.map(sup => <option key={sup} value={sup}>{sup}</option>)}
                             </select>
-                             <select className="p-2 border border-slate-300 rounded-lg">
-                                <option>Nivel de Stock</option>
+                             <select 
+                                className="p-2 border border-slate-300 rounded-lg"
+                                value={stockLevelFilter}
+                                onChange={e => setStockLevelFilter(e.target.value)}
+                             >
+                                <option value="all">Nivel de Stock (Todos)</option>
+                                <option value="high">Alto</option>
+                                <option value="low">Bajo</option>
+                                <option value="out">Sin Stock</option>
                             </select>
                         </div>
                         <div className="flex gap-2 w-full md:w-auto">
@@ -105,7 +150,7 @@ const Inventory: React.FC = () => {
                                 </tr>
                             </thead>
                             <tbody>
-                                {/* 5. Mapeamos sobre filteredProducts */}
+                                {/* 6. Mapear sobre filteredProducts */}
                                 {filteredProducts.map(product => (
                                     <tr key={product.id} className="border-b border-slate-100 hover:bg-slate-50">
                                         <td className="px-4 py-3"><input type="checkbox" /></td>
