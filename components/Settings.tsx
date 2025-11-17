@@ -42,7 +42,7 @@ const Settings: React.FC = () => {
 
              {/* 6. Formulario de Datos de la Empresa (ACTUALIZADO) */}
              <div className="bg-white p-6 rounded-xl shadow-sm">
-                <h2 className="text-lg font-semibold text-slate-800 border-b pb-4 mb-6">Datos de la Empresa</h2>
+                <h2 className="text-lg font-semibold text-slate-800 border-b pb-4 mb-6">Datos de la Empresa y Globales</h2>
                 
                 <div className="space-y-4 max-w-lg">
                     <div>
@@ -70,6 +70,7 @@ const Settings: React.FC = () => {
                             value={taxRate}
                             onChange={e => setTaxRate(Number(e.target.value))}
                             className="w-full mt-1 p-2 border border-slate-300 rounded-lg"
+                            placeholder="Ej: 21"
                         />
                     </div>
                 </div>
