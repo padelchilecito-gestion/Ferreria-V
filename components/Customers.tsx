@@ -1,4 +1,4 @@
-import React, { useState } from 'react'; // 1. Importar useState
+import React, { useState } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState, AppDispatch } from '../store';
 import { Customer } from '../types';
@@ -47,12 +47,12 @@ const CustomerDetail: React.FC<CustomerDetailProps> = ({ customer, onEdit, onDel
               <div className="flex items-center">
                   <span className="w-24 font-medium text-sm text-slate-500">Estado</span>
                   <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${customer.accountStatus === 'Active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                      {customer.accountStatus}
+                      {customer.accountStatus === 'Active' ? 'Activo' : 'Inactivo'}
                   </span>
               </div>
               <div className="flex items-center">
                   <span className="w-24 font-medium text-sm text-slate-500">Saldo</span>
-                  <span className="text-slate-700 font-bold">${customer.balance.toFixed(2)}</span>
+                  <span className={`text-lg font-bold ${customer.balance > 0 ? 'text-red-600' : 'text-slate-700'}`}>${customer.balance.toFixed(2)}</span>
               </div>
           </div>
            <div className="flex gap-2">
@@ -80,9 +80,10 @@ const Customers: React.FC = () => {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(customers[0] || null);
-
-  // 2. Estado para la búsqueda
   const [searchTerm, setSearchTerm] = useState('');
+  
+  // 1. Estado para el filtro de estado de cuenta
+  const [statusFilter, setStatusFilter] = useState('all');
 
   const handleEdit = () => {
     if (!selectedCustomer) return;
@@ -98,11 +99,15 @@ const Customers: React.FC = () => {
     }
   };
 
-  // 3. Filtramos los clientes
-  const filteredCustomers = customers.filter(c => 
-    c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    c.cuit.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // 2. Filtramos los clientes (combinando búsqueda y filtro)
+  const filteredCustomers = customers.filter(c => {
+    const matchesSearch = c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          c.cuit.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    const matchesStatus = statusFilter === 'all' || c.accountStatus === statusFilter;
+    
+    return matchesSearch && matchesStatus;
+  });
 
   return (
       <>
@@ -123,17 +128,29 @@ const Customers: React.FC = () => {
 
               <div className="flex flex-col lg:flex-row gap-6">
                   <div className="lg:w-2/3 bg-white p-4 rounded-xl shadow-sm">
-                      <div className="relative mb-4">
-                          <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-                          {/* 4. Conectamos el input al estado */}
-                          <input 
-                            type="text" 
-                            placeholder="Buscar por Nombre, CUIT/DNI..." 
-                            className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg"
-                            value={searchTerm}
-                            onChange={e => setSearchTerm(e.target.value)}
-                          />
+                      {/* 3. Contenedor para los filtros */}
+                      <div className="flex flex-col sm:flex-row gap-4 mb-4">
+                        <div className="relative flex-1">
+                            <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+                            <input 
+                              type="text" 
+                              placeholder="Buscar por Nombre, CUIT/DNI..." 
+                              className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg"
+                              value={searchTerm}
+                              onChange={e => setSearchTerm(e.target.value)}
+                            />
+                        </div>
+                        <select 
+                            className="p-2 border border-slate-300 rounded-lg"
+                            value={statusFilter}
+                            onChange={e => setStatusFilter(e.target.value)}
+                        >
+                            <option value="all">Estado (Todos)</option>
+                            <option value="Active">Activo</option>
+                            <option value="Inactive">Inactivo</option>
+                        </select>
                       </div>
+                      
                       <div className="overflow-x-auto">
                           <table className="w-full text-left">
                               <thead className="text-xs text-slate-500 uppercase bg-slate-50">
@@ -145,7 +162,7 @@ const Customers: React.FC = () => {
                                   </tr>
                               </thead>
                               <tbody>
-                                  {/* 5. Mapeamos sobre filteredCustomers */}
+                                  {/* 4. Mapear sobre filteredCustomers */}
                                   {filteredCustomers.map(customer => (
                                       <tr 
                                           key={customer.id} 
