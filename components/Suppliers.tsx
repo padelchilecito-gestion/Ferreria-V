@@ -2,16 +2,17 @@ import React, { useState, useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState, AppDispatch } from '../store';
 import { Supplier } from '../types';
-import { PlusIcon, SearchIcon, TrashIcon, ShoppingBagIcon } from './Icons'; // 1. Importar ShoppingBagIcon
+// 1. Importar los iconos necesarios
+import { PlusIcon, SearchIcon, TrashIcon, ShoppingBagIcon, PencilIcon, CurrencyDollarIcon } from './Icons';
 import { deleteSupplier } from '../store/suppliersSlice';
 import AddSupplierModal from './AddSupplierModal';
 import EditSupplierModal from './EditSupplierModal';
-import AddPurchaseModal from './AddPurchaseModal'; // 2. Importar el nuevo modal de Compras
+import AddPurchaseModal from './AddPurchaseModal';
+import AddSupplierPaymentModal from './AddSupplierPaymentModal'; // 2. Importar el nuevo modal
 
 const ITEMS_PER_PAGE = 10;
 
 const StatusBadge: React.FC<{ status: Supplier['status'] }> = ({ status }) => {
-    // ... (sin cambios)
     const styles = {
         Active: 'bg-green-100 text-green-800',
         Inactive: 'bg-red-100 text-red-800',
@@ -30,8 +31,9 @@ const Suppliers: React.FC = () => {
 
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-    // 3. Estado para el modal de compras
     const [isPurchaseModalOpen, setIsPurchaseModalOpen] = useState(false);
+    // 3. Estado para el modal de pago
+    const [isPayModalOpen, setIsPayModalOpen] = useState(false);
     
     const [currentSupplier, setCurrentSupplier] = useState<Supplier | null>(null);
 
@@ -44,6 +46,12 @@ const Suppliers: React.FC = () => {
         if (window.confirm(`¿Está seguro de que desea eliminar a ${supplierName}?`)) {
             dispatch(deleteSupplier(supplierId));
         }
+    };
+
+    // 4. Manejador para abrir el modal de pago
+    const handleAddPayment = (supplier: Supplier) => {
+        setCurrentSupplier(supplier);
+        setIsPayModalOpen(true);
     };
 
     const filteredSuppliers = suppliers.filter(s => {
@@ -77,7 +85,6 @@ const Suppliers: React.FC = () => {
                         <h1 className="text-2xl font-bold text-slate-800 hidden lg:block">Gestión de Proveedores</h1>
                         <p className="text-slate-500 mt-1">Administre la información y el estado de sus proveedores.</p>
                     </div>
-                    {/* 4. Botones de acción */}
                     <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
                         <button 
                             onClick={() => setIsPurchaseModalOpen(true)}
@@ -126,7 +133,6 @@ const Suppliers: React.FC = () => {
                                 <tr>
                                     <th className="px-4 py-3">Nombre o Razón Social</th>
                                     <th className="px-4 py-3">CUIT/DNI</th>
-                                    {/* 5. Nueva columna de Saldo */}
                                     <th className="px-4 py-3">Saldo (Deuda)</th>
                                     <th className="px-4 py-3">Email</th>
                                     <th className="px-4 py-3">Status</th>
@@ -138,22 +144,32 @@ const Suppliers: React.FC = () => {
                                     <tr key={supplier.id} className="border-b border-slate-100 hover:bg-slate-50">
                                         <td className="px-4 py-3 font-medium text-slate-700">{supplier.name}</td>
                                         <td className="px-4 py-3 text-slate-600">{supplier.cuit}</td>
-                                        {/* 6. Mostrar el saldo del proveedor */}
                                         <td className={`px-4 py-3 font-semibold ${supplier.balance > 0 ? 'text-red-600' : 'text-slate-700'}`}>
                                             ${supplier.balance.toFixed(2)}
                                         </td>
                                         <td className="px-4 py-3 text-slate-600">{supplier.email}</td>
                                         <td className="px-4 py-3"><StatusBadge status={supplier.status} /></td>
-                                        <td className="px-4 py-3 text-center">
+                                        {/* 5. Columna de Acciones actualizada */}
+                                        <td className="px-4 py-3 text-left whitespace-nowrap">
+                                            <button 
+                                                onClick={() => handleAddPayment(supplier)}
+                                                className="text-green-600 hover:text-green-800 px-2 disabled:opacity-30 disabled:cursor-not-allowed"
+                                                aria-label={`Registrar pago a ${supplier.name}`}
+                                                disabled={supplier.balance <= 0}
+                                            >
+                                                <CurrencyDollarIcon className="w-4 h-4 inline-block" />
+                                            </button>
                                             <button 
                                                 onClick={() => handleEdit(supplier)}
                                                 className="text-blue-600 hover:text-blue-800 px-2"
+                                                aria-label={`Editar ${supplier.name}`}
                                             >
-                                                Editar
+                                                <PencilIcon className="w-4 h-4 inline-block" />
                                             </button>
                                             <button 
                                                 onClick={() => handleDelete(supplier.id, supplier.name)}
                                                 className="text-red-600 hover:text-red-800 px-2"
+                                                aria-label={`Eliminar ${supplier.name}`}
                                             >
                                                 <TrashIcon className="w-4 h-4 inline-block" />
                                             </button>
@@ -188,7 +204,7 @@ const Suppliers: React.FC = () => {
                 </div>
             </div>
             
-            {/* 7. Renderizar todos los modales */}
+            {/* 6. Renderizar todos los modales */}
             <AddSupplierModal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} />
             <EditSupplierModal 
                 isOpen={isEditModalOpen} 
@@ -196,6 +212,11 @@ const Suppliers: React.FC = () => {
                 supplier={currentSupplier} 
             />
             <AddPurchaseModal isOpen={isPurchaseModalOpen} onClose={() => setIsPurchaseModalOpen(false)} />
+            <AddSupplierPaymentModal
+                isOpen={isPayModalOpen}
+                onClose={() => setIsPayModalOpen(false)}
+                supplier={currentSupplier}
+            />
         </>
     );
 };
