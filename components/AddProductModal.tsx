@@ -1,3 +1,4 @@
+// components/AddProductModal.tsx
 import React, { useState } from 'react';
 import { useDispatch } from 'react-redux';
 import { nanoid } from 'nanoid';
@@ -39,7 +40,7 @@ const AddProductModal: React.FC<AddProductModalProps> = ({ isOpen, onClose }) =>
       minStock: Number(minStock) || 0,
       costPrice: Number(costPrice) || 0,
       retailPrice: Number(retailPrice) || 0,
-      wholesalePrice: Number(wholesalePrice) || 0, // 2. Añadir al nuevo producto
+      wholesalePrice: Number(wholesalePrice) || Number(retailPrice), // 2. Añadir. Si es 0, usa el minorista.
     };
 
     dispatch(addProduct(newProduct));
@@ -154,6 +155,7 @@ const AddProductModal: React.FC<AddProductModalProps> = ({ isOpen, onClose }) =>
                   value={costPrice}
                   onChange={e => setCostPrice(Number(e.target.value))}
                   className="w-full mt-1 p-2 border border-slate-300 rounded-lg"
+                  placeholder="0.00"
                 />
               </div>
               <div>
@@ -164,6 +166,7 @@ const AddProductModal: React.FC<AddProductModalProps> = ({ isOpen, onClose }) =>
                   value={retailPrice}
                   onChange={e => setRetailPrice(Number(e.target.value))}
                   className="w-full mt-1 p-2 border border-slate-300 rounded-lg"
+                  placeholder="0.00"
                 />
               </div>
               <div>
@@ -174,6 +177,7 @@ const AddProductModal: React.FC<AddProductModalProps> = ({ isOpen, onClose }) =>
                   value={wholesalePrice}
                   onChange={e => setWholesalePrice(Number(e.target.value))}
                   className="w-full mt-1 p-2 border border-slate-300 rounded-lg"
+                  placeholder="0.00"
                 />
               </div>
             </div>
