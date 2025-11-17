@@ -7,6 +7,9 @@ import { deleteSupplier } from '../store/suppliersSlice';
 import AddSupplierModal from './AddSupplierModal';
 import EditSupplierModal from './EditSupplierModal';
 
+// 1. Definir items por página
+const ITEMS_PER_PAGE = 10;
+
 const StatusBadge: React.FC<{ status: Supplier['status'] }> = ({ status }) => {
     const styles = {
         Active: 'bg-green-100 text-green-800',
@@ -21,8 +24,10 @@ const Suppliers: React.FC = () => {
     const dispatch = useDispatch<AppDispatch>();
 
     const [searchTerm, setSearchTerm] = useState('');
-    // 1. Estado para el filtro de estado
     const [statusFilter, setStatusFilter] = useState('all');
+
+    // 2. Estado para paginación
+    const [currentPage, setCurrentPage] = useState(1);
 
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -39,15 +44,30 @@ const Suppliers: React.FC = () => {
         }
     };
 
-    // 2. Filtramos los proveedores (combinando búsqueda y filtro)
     const filteredSuppliers = suppliers.filter(s => {
         const matchesSearch = s.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
                               s.cuit.toLowerCase().includes(searchTerm.toLowerCase());
-        
         const matchesStatus = statusFilter === 'all' || s.status === statusFilter;
-
         return matchesSearch && matchesStatus;
     });
+
+    // 3. Lógica de paginación
+    const totalPages = Math.ceil(filteredSuppliers.length / ITEMS_PER_PAGE);
+    const paginatedSuppliers = filteredSuppliers.slice(
+        (currentPage - 1) * ITEMS_PER_PAGE,
+        currentPage * ITEMS_PER_PAGE
+    );
+
+    const handlePageChange = (newPage: number) => {
+        if (newPage >= 1 && newPage <= totalPages) {
+            setCurrentPage(newPage);
+        }
+    };
+
+    // Resetear página a 1 cuando cambian los filtros
+    React.useEffect(() => {
+        setCurrentPage(1);
+    }, [searchTerm, statusFilter]);
 
     return (
         <> 
@@ -67,7 +87,6 @@ const Suppliers: React.FC = () => {
                 </div>
 
                 <div className="bg-white p-4 rounded-xl shadow-sm">
-                    {/* 3. Contenedor para los filtros */}
                     <div className="flex flex-col sm:flex-row gap-4 mb-4">
                         <div className="relative flex-1">
                             <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
@@ -104,8 +123,8 @@ const Suppliers: React.FC = () => {
                                 </tr>
                             </thead>
                             <tbody>
-                                {/* 4. Mapear sobre filteredSuppliers */}
-                                {filteredSuppliers.map(supplier => (
+                                {/* 4. Mapear sobre paginatedSuppliers */}
+                                {paginatedSuppliers.map(supplier => (
                                     <tr key={supplier.id} className="border-b border-slate-100 hover:bg-slate-50">
                                         <td className="px-4 py-3 font-medium text-slate-700">{supplier.name}</td>
                                         <td className="px-4 py-3 text-slate-600">{supplier.cuit}</td>
@@ -131,7 +150,29 @@ const Suppliers: React.FC = () => {
                             </tbody>
                         </table>
                     </div>
-                    {/* ... (Paginación estática, la dejamos para después) ... */}
+                    
+                    {/* 5. Controles de Paginación */}
+                    <div className="flex justify-between items-center mt-4 text-sm">
+                        <span className="text-slate-600">
+                            Mostrando {Math.min((currentPage - 1) * ITEMS_PER_PAGE + 1, filteredSuppliers.length)} - {Math.min(currentPage * ITEMS_PER_PAGE, filteredSuppliers.length)} de {filteredSuppliers.length} proveedores
+                        </span>
+                        <div className="flex gap-2">
+                            <button
+                                onClick={() => handlePageChange(currentPage - 1)}
+                                disabled={currentPage === 1}
+                                className="px-3 py-1 border rounded-md bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                &lt; Anterior
+                            </button>
+                            <button
+                                onClick={() => handlePageChange(currentPage + 1)}
+                                disabled={currentPage === totalPages || totalPages === 0}
+                                className="px-3 py-1 border rounded-md bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                Siguiente &gt;
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
             
