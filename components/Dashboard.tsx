@@ -1,18 +1,10 @@
-import React from 'react'; // 1. Quitar useMemo
+import React, { useMemo } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { TrendUpIcon, UserGroupIcon, AlertTriangleIcon, PlusIcon, CheckCircleIcon, DocumentTextIcon, CubeIcon } from './Icons';
 import { ViewType } from '../App';
 import { useSelector } from 'react-redux';
 import { RootState } from '../store';
-// 2. Importar los nuevos selectores
-import {
-    selectDashboardStats,
-    selectSalesChartData,
-    selectLowStockProductCount,
-    selectLowStockProducts,
-    selectCustomerCount,
-    selectUpcomingChecks
-} from '../store/selectors';
+import { Sale, Check, Purchase } from '../types'; // 1. Importar el tipo 'Purchase'
 
 const StatCard: React.FC<{ title: string; value: string; change: string; isPositive: boolean; icon: React.ElementType }> = ({ title, value, change, isPositive, icon: Icon }) => (
     <div className="bg-white p-5 rounded-xl shadow-sm flex-1">
@@ -40,17 +32,95 @@ const StatCard: React.FC<{ title: string; value: string; change: string; isPosit
     </div>
 );
 
-// 3. ¡Todas las funciones helper y de cálculo han sido eliminadas de aquí!
+const aggregateSalesByDay = (sales: Sale[]) => {
+    const weeklySales: { [key: number]: { name: string, Ventas: number } } = {
+        0: { name: "Dom", Ventas: 0 }, 1: { name: "Lun", Ventas: 0 }, 2: { name: "Mar", Ventas: 0 },
+        3: { name: "Mié", Ventas: 0 }, 4: { name: "Jue", Ventas: 0 }, 5: { name: "Vie", Ventas: 0 },
+        6: { name: "Sáb", Ventas: 0 },
+    };
+    const today = new Date();
+    const oneWeekAgo = new Date();
+    oneWeekAgo.setDate(today.getDate() - 7);
+
+    sales.forEach(sale => {
+        const saleDate = new Date(sale.date);
+        if (saleDate >= oneWeekAgo) {
+            const dayOfWeek = saleDate.getDay();
+            weeklySales[dayOfWeek].Ventas += sale.total;
+        }
+    });
+    
+    return [ weeklySales[1], weeklySales[2], weeklySales[3], weeklySales[4], weeklySales[5], weeklySales[6], weeklySales[0] ];
+};
+
+const getTodayString = () => {
+    const today = new Date();
+    today.setMinutes(today.getMinutes() - today.getTimezoneOffset());
+    return today.toISOString().split('T')[0];
+};
+
+const getUpcomingChecks = (checks: Check[], daysThreshold: number = 7) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayTime = today.getTime();
+    const msInDay = 1000 * 60 * 60 * 24;
+
+    return checks
+        .filter(check => check.status === 'En cartera')
+        .map(check => {
+            const dateParts = check.dueDate.split('-').map(part => parseInt(part, 10));
+            const dueDate = new Date(dateParts[0], dateParts[1] - 1, dateParts[2]);
+            dueDate.setHours(0,0,0,0);
+            const daysRemaining = Math.round((dueDate.getTime() - todayTime) / msInDay);
+            return { ...check, daysRemaining };
+        })
+        .filter(check => check.daysRemaining >= 0 && check.daysRemaining <= daysThreshold)
+        .sort((a, b) => a.daysRemaining - b.daysRemaining);
+};
+
 
 const Dashboard: React.FC<{setActiveView: (view: ViewType) => void}> = ({ setActiveView }) => {
-    
-    // 4. Usar los selectores memorizados
-    const { salesToday, profitToday } = useSelector(selectDashboardStats);
-    const salesChartData = useSelector(selectSalesChartData);
-    const lowStockProductCount = useSelector(selectLowStockProductCount);
-    const lowStockProducts = useSelector(selectLowStockProducts); // Usar este para la tabla
-    const customerCount = useSelector(selectCustomerCount);
-    const upcomingChecks = useSelector(selectUpcomingChecks);
+    const allProducts = useSelector((state: RootState) => state.products.products);
+    const allCustomers = useSelector((state: RootState) => state.customers.customers);
+    const allSales = useSelector((state: RootState) => state.sales.sales);
+    const allChecks = useSelector((state: RootState) => state.checks.checks);
+    // 2. Leer las compras del store
+    const allPurchases = useSelector((state: RootState) => state.purchases.purchases);
+
+    // 3. Actualizar useMemo para incluir 'pendingPurchases'
+    const { salesToday, profitToday, salesChartData, lowStockProductCount, upcomingChecks, pendingPurchases } = useMemo(() => {
+        const todayStr = getTodayString();
+        const salesTodayArr = allSales.filter(s => s.date.startsWith(todayStr));
+        
+        const totalSales = salesTodayArr.reduce((acc, s) => acc + s.total, 0);
+        
+        const totalCost = salesTodayArr.reduce((accSale, sale) => {
+            return accSale + sale.items.reduce((accItem, item) => {
+                return accItem + (item.costPrice * item.quantity);
+            }, 0);
+        }, 0);
+
+        const totalProfit = totalSales - totalCost;
+        const chartData = aggregateSalesByDay(allSales);
+        const lowStockCount = allProducts.filter(p => p.stock <= p.minStock).length;
+        const upcomingChecksData = getUpcomingChecks(allChecks, 7);
+        
+        // 4. Calcular las facturas pendientes
+        const pendingPurchasesData = allPurchases
+            .filter(purchase => purchase.status === 'Pendiente de pago')
+            .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()); // Opcional: mostrar las más antiguas primero
+
+        return {
+            salesToday: totalSales,
+            profitToday: totalProfit,
+            salesChartData: chartData,
+            lowStockProductCount: lowStockCount,
+            upcomingChecks: upcomingChecksData,
+            pendingPurchases: pendingPurchasesData, // 5. Devolver las facturas pendientes
+        };
+    }, [allSales, allProducts, allChecks, allPurchases]); // 6. Añadir allPurchases a las dependencias
+
+    const customerCount = allCustomers.length;
 
     return (
         <div className="space-y-6">
@@ -121,33 +191,53 @@ const Dashboard: React.FC<{setActiveView: (view: ViewType) => void}> = ({ setAct
                     </div>
                 </div>
 
+                {/* 7. Sección de Alertas y Notificaciones (Actualizada) */}
                 <div className="bg-white p-5 rounded-xl shadow-sm">
                     <h2 className="text-lg font-semibold text-slate-800 mb-4">Alertas y Notificaciones</h2>
                     <ul className="space-y-4">
+                        
                         {upcomingChecks.length > 0 ? (
-                            upcomingChecks.map(check => (
-                                <li key={check.id} className="flex items-start gap-3">
-                                    <div className="mt-1 flex-shrink-0"><CheckCircleIcon className="w-5 h-5 text-yellow-500" /></div>
-                                    <div>
-                                        <p className="font-medium text-slate-700">Cheque a vencer: #{check.number}</p>
-                                        <p className="text-sm text-slate-500">
-                                            {check.issuer} - ${check.amount.toLocaleString('es-AR')}
-                                            {check.daysRemaining === 0 ? " (Vence hoy)" : ` (Vence en ${check.daysRemaining} ${check.daysRemaining === 1 ? 'día' : 'días'})`}
-                                        </p>
-                                    </div>
-                                </li>
-                            ))
+                            <li className="flex items-start gap-3">
+                                <div className="mt-1 flex-shrink-0"><CheckCircleIcon className="w-5 h-5 text-yellow-500" /></div>
+                                <div>
+                                    <p className="font-medium text-slate-700">Cheques a vencer ({upcomingChecks.length})</p>
+                                    <p className="text-sm text-slate-500">
+                                        #{upcomingChecks[0].number} - ${upcomingChecks[0].amount.toLocaleString('es-AR')}
+                                        {upcomingChecks[0].daysRemaining === 0 ? " (Vence hoy)" : ` (Vence en ${upcomingChecks[0].daysRemaining} ${upcomingChecks[0].daysRemaining === 1 ? 'día' : 'días'})`}
+                                    </p>
+                                </div>
+                            </li>
                         ) : (
-                            <li className="text-sm text-slate-500">No hay cheques próximos a vencer.</li>
+                            <li className="flex items-start gap-3">
+                                <div className="mt-1 flex-shrink-0"><CheckCircleIcon className="w-5 h-5 text-green-500" /></div>
+                                <div>
+                                    <p className="font-medium text-slate-700">Cheques</p>
+                                    <p className="text-sm text-slate-500">No hay cheques próximos a vencer.</p>
+                                </div>
+                            </li>
                         )}
                         
-                        <li className="flex items-start gap-3">
-                            <div className="mt-1 flex-shrink-0"><DocumentTextIcon className="w-5 h-5 text-red-500" /></div>
-                            <div>
-                                <p className="font-medium text-slate-700">Facturas Pendientes (1)</p>
-                                <p className="text-sm text-slate-500">Factura #INV-098 de 'Aceros S.A' vencida.</p>
-                            </div>
-                        </li>
+                        {/* 8. Alerta de Facturas Pendientes (DINÁMICA) */}
+                        {pendingPurchases.length > 0 ? (
+                            <li className="flex items-start gap-3">
+                                <div className="mt-1 flex-shrink-0"><DocumentTextIcon className="w-5 h-5 text-red-500" /></div>
+                                <div>
+                                    <p className="font-medium text-slate-700">Facturas Pendientes ({pendingPurchases.length})</p>
+                                    <p className="text-sm text-slate-500">
+                                        Factura #{pendingPurchases[0].invoiceNumber} de {pendingPurchases[0].supplierName} está pendiente.
+                                    </p>
+                                </div>
+                            </li>
+                        ) : (
+                            <li className="flex items-start gap-3">
+                                <div className="mt-1 flex-shrink-0"><DocumentTextIcon className="w-5 h-5 text-green-500" /></div>
+                                <div>
+                                    <p className="font-medium text-slate-700">Facturas Pendientes</p>
+                                    <p className="text-sm text-slate-500">No hay facturas pendientes de pago.</p>
+                                </div>
+                            </li>
+                        )}
+
                     </ul>
                 </div>
             </div>
@@ -167,7 +257,6 @@ const Dashboard: React.FC<{setActiveView: (view: ViewType) => void}> = ({ setAct
                             </tr>
                         </thead>
                         <tbody>
-                            {/* 5. Usar el selector de productos con bajo stock */}
                             {lowStockProducts.map(product => (
                                 <tr key={product.id} className="border-b border-slate-100">
                                     <td className="px-4 py-3 font-medium text-slate-700">{product.name}</td>
@@ -179,7 +268,16 @@ const Dashboard: React.FC<{setActiveView: (view: ViewType) => void}> = ({ setAct
                                     </td>
                                     <td className="px-4 py-3 text-slate-600">{product.minStock}</td>
                                     <td className="px-4 py-3 text-right">
-                                        <a href="#" className="font-medium text-blue-600 hover:underline">Ver</a>
+                                        <a 
+                                            href="#" 
+                                            onClick={(e) => { 
+                                                e.preventDefault(); 
+                                                setActiveView('inventory'); 
+                                            }} 
+                                            className="font-medium text-blue-600 hover:underline"
+                                        >
+                                            Ver
+                                        </a>
                                     </td>
                                 </tr>
                             ))}
