@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
-import { useSelector } from 'react-redux'; // 1. Importar useSelector
-import { RootState } from '../store'; // 2. Importar RootState
+import { useSelector, useDispatch } from 'react-redux'; // 1. Importar hooks
+import { RootState, AppDispatch } from '../store';
 import { Check } from '../types';
-import { PlusIcon, PencilIcon } from './Icons'; // 3. Importar iconos
-import AddCheckModal from './AddCheckModal'; // 4. Importar modal
+import { PlusIcon, PencilIcon } from './Icons'; // 2. Importar iconos
+import AddCheckModal from './AddCheckModal'; // 3. Importar modales
+import UpdateCheckStatusModal from './UpdateCheckStatusModal';
 
 const StatusBadge: React.FC<{ status: Check['status'] }> = ({ status }) => {
-    // ... (sin cambios) ...
     const styles = {
         'En cartera': 'bg-blue-100 text-blue-800',
         'Depositado': 'bg-indigo-100 text-indigo-800',
@@ -17,11 +17,20 @@ const StatusBadge: React.FC<{ status: Check['status'] }> = ({ status }) => {
 };
 
 const Checks: React.FC = () => {
-    // 5. Leer cheques desde el store global
+    // 4. Leer cheques desde el store global
     const checks = useSelector((state: RootState) => state.checks.checks);
+    const dispatch = useDispatch<AppDispatch>(); // (No lo usamos aquí, pero es buena práctica)
 
-    // 6. Estado local para el modal de añadir
+    // 5. Estado local para AMBOS modales
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+    const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
+    const [currentCheck, setCurrentCheck] = useState<Check | null>(null);
+
+    // 6. Función para abrir el modal de actualización
+    const handleUpdateStatus = (check: Check) => {
+        setCurrentCheck(check);
+        setIsUpdateModalOpen(true);
+    };
 
     return (
         <> {/* 7. Envolver en Fragment */}
@@ -79,9 +88,10 @@ const Checks: React.FC = () => {
                                         <td className="px-4 py-3 text-slate-600 font-medium">{check.dueDate}</td>
                                         <td className="px-4 py-3 font-semibold text-slate-800">${check.amount.toLocaleString('es-AR')}</td>
                                         <td className="px-4 py-3"><StatusBadge status={check.status} /></td>
-                                        {/* 10. Botón de acción (aún pendiente) */}
+                                        {/* 10. Botón de acción (para actualizar estado) */}
                                         <td className="px-4 py-3 text-center">
                                             <button 
+                                                onClick={() => handleUpdateStatus(check)}
                                                 className="text-blue-600 hover:text-blue-800 px-2"
                                                 aria-label={`Actualizar estado de cheque ${check.number}`}
                                             >
@@ -96,8 +106,13 @@ const Checks: React.FC = () => {
                 </div>
             </div>
 
-            {/* 11. Renderizar el modal */}
+            {/* 11. Renderizar ambos modales */}
             <AddCheckModal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} />
+            <UpdateCheckStatusModal 
+                isOpen={isUpdateModalOpen} 
+                onClose={() => setIsUpdateModalOpen(false)} 
+                check={currentCheck} 
+            />
         </>
     );
 };
