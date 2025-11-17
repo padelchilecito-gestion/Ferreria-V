@@ -22,8 +22,11 @@ const Checks: React.FC = () => {
     const dispatch = useDispatch<AppDispatch>(); 
 
     const [searchTerm, setSearchTerm] = useState('');
-    // 1. Estado para el filtro de estado
     const [statusFilter, setStatusFilter] = useState('all');
+    
+    // 1. Estados para el rango de fechas (Vencimiento)
+    const [startDateFilter, setStartDateFilter] = useState('');
+    const [endDateFilter, setEndDateFilter] = useState('');
 
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
@@ -34,14 +37,18 @@ const Checks: React.FC = () => {
         setIsUpdateModalOpen(true);
     };
 
-    // 2. Lógica de filtrado combinada
+    // 2. Lógica de filtrado combinada (incluyendo fechas)
     const filteredChecks = checks.filter(c => {
         const matchesSearch = c.issuer.toLowerCase().includes(searchTerm.toLowerCase()) || 
                               c.number.toLowerCase().includes(searchTerm.toLowerCase());
         
         const matchesStatus = statusFilter === 'all' || c.status === statusFilter;
         
-        return matchesSearch && matchesStatus;
+        // Comparamos los strings 'YYYY-MM-DD'. Funciona bien para este formato.
+        const matchesStartDate = !startDateFilter || c.dueDate >= startDateFilter;
+        const matchesEndDate = !endDateFilter || c.dueDate <= endDateFilter;
+        
+        return matchesSearch && matchesStatus && matchesStartDate && matchesEndDate;
     });
 
     return (
@@ -61,20 +68,33 @@ const Checks: React.FC = () => {
                             value={searchTerm}
                             onChange={e => setSearchTerm(e.target.value)}
                         />
-                        <div className="flex gap-2 w-full md:w-auto">
-                            {/* 3. Conectar el <select> al estado */}
+                        {/* 3. Inputs de filtro actualizados */}
+                        <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
                             <select 
                                 className="p-2 border border-slate-300 rounded-lg"
                                 value={statusFilter}
                                 onChange={e => setStatusFilter(e.target.value)}
                             >
-                                <option value="all">Filtrar por estado (Todos)</option>
+                                <option value="all">Estado (Todos)</option>
                                 <option value="En cartera">En cartera</option>
                                 <option value="Depositado">Depositado</option>
                                 <option value="Cobrado">Cobrado</option>
                                 <option value="Rechazado">Rechazado</option>
                             </select>
-                            <input type="date" className="p-2 border border-slate-300 rounded-lg" />
+                            <input 
+                                type="date" 
+                                className="p-2 border border-slate-300 rounded-lg"
+                                value={startDateFilter}
+                                onChange={e => setStartDateFilter(e.target.value)}
+                                title="Vencimiento Desde"
+                            />
+                            <input 
+                                type="date" 
+                                className="p-2 border border-slate-300 rounded-lg"
+                                value={endDateFilter}
+                                onChange={e => setEndDateFilter(e.target.value)}
+                                title="Vencimiento Hasta"
+                            />
                         </div>
                         <button 
                             onClick={() => setIsAddModalOpen(true)}
