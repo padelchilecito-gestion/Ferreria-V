@@ -7,6 +7,9 @@ import AddCustomerModal from './AddCustomerModal';
 import EditCustomerModal from './EditCustomerModal';
 import { deleteCustomer } from '../store/customersSlice';
 
+// 1. Definir items por página
+const ITEMS_PER_PAGE = 10;
+
 interface CustomerDetailProps {
   customer: Customer | null;
   onEdit: () => void;
@@ -22,6 +25,7 @@ const CustomerDetail: React.FC<CustomerDetailProps> = ({ customer, onEdit, onDel
       );
   }
 
+  // (El contenido de CustomerDetail no cambia)
   return (
       <div className="flex-1 bg-white p-6 rounded-xl shadow-sm">
           <div className="flex items-center gap-4 pb-6 border-b">
@@ -79,11 +83,23 @@ const Customers: React.FC = () => {
 
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(customers[0] || null);
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null); // Iniciar sin cliente seleccionado
   const [searchTerm, setSearchTerm] = useState('');
-  
-  // 1. Estado para el filtro de estado de cuenta
   const [statusFilter, setStatusFilter] = useState('all');
+  
+  // 2. Estado para la paginación
+  const [currentPage, setCurrentPage] = useState(1);
+
+  // Seleccionar el primer cliente de la lista filtrada si 'selectedCustomer' es null
+  // Esto es para que el panel de detalle no quede vacío al cambiar de filtro
+  const getFirstCustomer = (list: Customer[]) => {
+    if (!selectedCustomer && list.length > 0) {
+      setSelectedCustomer(list[0]);
+    } else if (selectedCustomer && !list.find(c => c.id === selectedCustomer.id)) {
+      // Si el cliente seleccionado ya no está en la lista filtrada, seleccionar el primero
+      setSelectedCustomer(list.length > 0 ? list[0] : null);
+    }
+  };
 
   const handleEdit = () => {
     if (!selectedCustomer) return;
@@ -99,15 +115,40 @@ const Customers: React.FC = () => {
     }
   };
 
-  // 2. Filtramos los clientes (combinando búsqueda y filtro)
   const filteredCustomers = customers.filter(c => {
     const matchesSearch = c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                           c.cuit.toLowerCase().includes(searchTerm.toLowerCase());
-    
     const matchesStatus = statusFilter === 'all' || c.accountStatus === statusFilter;
-    
     return matchesSearch && matchesStatus;
   });
+
+  // 3. Lógica de paginación
+  const totalPages = Math.ceil(filteredCustomers.length / ITEMS_PER_PAGE);
+  const paginatedCustomers = filteredCustomers.slice(
+      (currentPage - 1) * ITEMS_PER_PAGE,
+      currentPage * ITEMS_PER_PAGE
+  );
+
+  // Sincronizar selección con paginación/filtros
+  React.useEffect(() => {
+    // Si la lista paginada no incluye al cliente seleccionado,
+    // o si no hay cliente seleccionado, seleccionar el primero de la página actual.
+    const currentSelectionInPage = paginatedCustomers.find(c => c.id === selectedCustomer?.id);
+    if (!currentSelectionInPage) {
+        setSelectedCustomer(paginatedCustomers.length > 0 ? paginatedCustomers[0] : null);
+    }
+  }, [currentPage, paginatedCustomers, selectedCustomer]);
+
+  React.useEffect(() => {
+    // Resetear página a 1 cuando cambian los filtros
+    setCurrentPage(1);
+  }, [searchTerm, statusFilter]);
+
+  const handlePageChange = (newPage: number) => {
+      if (newPage >= 1 && newPage <= totalPages) {
+          setCurrentPage(newPage);
+      }
+  };
 
   return (
       <>
@@ -128,7 +169,6 @@ const Customers: React.FC = () => {
 
               <div className="flex flex-col lg:flex-row gap-6">
                   <div className="lg:w-2/3 bg-white p-4 rounded-xl shadow-sm">
-                      {/* 3. Contenedor para los filtros */}
                       <div className="flex flex-col sm:flex-row gap-4 mb-4">
                         <div className="relative flex-1">
                             <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
@@ -162,8 +202,8 @@ const Customers: React.FC = () => {
                                   </tr>
                               </thead>
                               <tbody>
-                                  {/* 4. Mapear sobre filteredCustomers */}
-                                  {filteredCustomers.map(customer => (
+                                  {/* 4. Mapear sobre paginatedCustomers */}
+                                  {paginatedCustomers.map(customer => (
                                       <tr 
                                           key={customer.id} 
                                           onClick={() => setSelectedCustomer(customer)}
@@ -178,6 +218,30 @@ const Customers: React.FC = () => {
                               </tbody>
                           </table>
                       </div>
+
+                      {/* 5. Controles de Paginación */}
+                      <div className="flex justify-between items-center mt-4 text-sm">
+                          <span className="text-slate-600">
+                              Mostrando {Math.min((currentPage - 1) * ITEMS_PER_PAGE + 1, filteredCustomers.length)} - {Math.min(currentPage * ITEMS_PER_PAGE, filteredCustomers.length)} de {filteredCustomers.length} clientes
+                          </span>
+                          <div className="flex gap-2">
+                              <button
+                                  onClick={() => handlePageChange(currentPage - 1)}
+                                  disabled={currentPage === 1}
+                                  className="px-3 py-1 border rounded-md bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                              >
+                                  &lt; Anterior
+                              </button>
+                              <button
+                                  onClick={() => handlePageChange(currentPage + 1)}
+                                  disabled={currentPage === totalPages || totalPages === 0}
+                                  className="px-3 py-1 border rounded-md bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                              >
+                                  Siguiente &gt;
+                              </button>
+                          </div>
+                      </div>
+
                   </div>
                   <div className="lg:w-1/3">
                       <CustomerDetail 
