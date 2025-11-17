@@ -1,25 +1,25 @@
 import React, { useState } from 'react';
-// 1. Ya no importamos mockCustomers
-import { Product, CartItem, Customer } from '../types';
+import { Product, CartItem, Customer, Sale } from '../types'; // 1. Importar 'Sale'
 import { SearchIcon, TrashIcon, CheckCircleIcon } from './Icons';
-
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState, AppDispatch } from '../store';
 import { addToCart, updateQuantity, removeFromCart, clearCart } from '../store/cartSlice';
-import { reduceStock } from '../store/productsSlice'; 
+import { reduceStock } from '../store/productsSlice';
+import { nanoid } from 'nanoid'; // 2. Importar nanoid para generar IDs de venta
+import { addSale } from '../store/salesSlice'; // 3. Importar la acción de añadir venta
+import { updateCustomerBalance } from '../store/customersSlice'; // 4. Importar la acción de actualizar saldo
 
 const PointOfSale: React.FC = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedCustomer, setSelectedCustomer] = useState<string>('final');
     const [priceType, setPriceType] = useState<'retail' | 'wholesale'>('retail');
-    const [paymentMethod, setPaymentMethod] = useState<'efectivo' | 'debito' | 'cheque'>('efectivo');
+    // 5. Añadir 'cuenta corriente' a los métodos de pago
+    const [paymentMethod, setPaymentMethod] = useState<'efectivo' | 'debito' | 'cheque' | 'cuenta corriente'>('efectivo');
     const [paidAmount, setPaidAmount] = useState(0);
 
     const dispatch = useDispatch<AppDispatch>();
     const cart = useSelector((state: RootState) => state.cart.items);
     const allProducts = useSelector((state: RootState) => state.products.products);
-    
-    // 2. Leemos los clientes desde el store de Redux
     const allCustomers = useSelector((state: RootState) => state.customers.customers);
 
     const filteredProducts = allProducts.filter(p => 
@@ -27,6 +27,7 @@ const PointOfSale: React.FC = () => {
         p.sku.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
+    // --- Funciones del carrito (sin cambios) ---
     const dispatchAddToCart = (product: Product) => {
         dispatch(addToCart(product));
     };
@@ -42,29 +43,83 @@ const PointOfSale: React.FC = () => {
     const dispatchRemoveFromCart = (productId: string) => {
         dispatch(removeFromCart(productId));
     };
+    // --- Fin Funciones del carrito ---
 
     const subtotal = cart.reduce((acc, item) => acc + (item.retailPrice * item.quantity), 0);
     const tax = subtotal * 0.21;
     const total = subtotal + tax;
-    const change = paidAmount - total;
+    
+    // 6. Lógica de pago actualizada
+    // Si es 'cuenta corriente', el monto pagado es 0, todo va al saldo.
+    // Si es 'efectivo', usamos el monto ingresado.
+    // Si es 'debito' o 'cheque', se asume que paga el total en el momento.
+    const getPaidAmount = () => {
+        switch(paymentMethod) {
+            case 'efectivo':
+                return paidAmount;
+            case 'debito':
+            case 'cheque':
+                return total;
+            case 'cuenta corriente':
+                return 0;
+            default:
+                return 0;
+        }
+    };
+    
+    const finalPaidAmount = getPaidAmount();
+    const dueAmount = total - finalPaidAmount; // El saldo que queda por pagar en esta venta
+    const change = finalPaidAmount > total ? finalPaidAmount - total : 0; // El vuelto (solo para efectivo)
 
+
+    // 7. Lógica de finalización de venta ACTUALIZADA
     const handleFinalizeSale = () => {
-        // Lógica de reducción de stock y limpieza de carrito (ya implementada)
+        // Obtenemos el nombre del cliente
+        const customerName = selectedCustomer === 'final'
+            ? 'Consumidor Final'
+            : allCustomers.find(c => c.id === selectedCustomer)?.name || 'Cliente Eliminado';
+
+        // 1. Creamos el objeto de Venta
+        const newSale: Sale = {
+            id: nanoid(),
+            date: new Date().toISOString(),
+            customerId: selectedCustomer,
+            customerName: customerName,
+            items: cart,
+            subtotal: subtotal,
+            tax: tax,
+            total: total,
+            paymentMethod: paymentMethod,
+            paidAmount: finalPaidAmount,
+            dueAmount: dueAmount, // El saldo de ESTA venta
+        };
+
+        // 2. Despachamos la acción para guardar la venta
+        dispatch(addSale(newSale));
+
+        // 3. Despachamos la reducción de stock (como antes)
         cart.forEach(item => {
             dispatch(reduceStock({ id: item.id, quantity: item.quantity }));
         });
+
+        // 4. Actualizamos el saldo del cliente si no es "Consumidor Final"
+        if (selectedCustomer !== 'final' && dueAmount !== 0) {
+            // Despachamos la acción para sumar el saldo pendiente a la Cta. Cte.
+            dispatch(updateCustomerBalance({ customerId: selectedCustomer, dueAmount: dueAmount }));
+        }
         
+        // 5. Limpiamos el carrito (como antes)
         dispatch(clearCart());
         
+        // 6. Reseteamos el estado local del POS
         setPaidAmount(0);
         setSelectedCustomer('final');
-        
-        // AQUÍ ES DONDE AÑADIREMOS LA LÓGICA DE 'addSale' Y 'updateCustomerBalance'
+        setPaymentMethod('efectivo');
     };
 
     return (
         <div className="grid grid-cols-1 lg:grid-cols-10 gap-6 h-[calc(100vh-8rem)]">
-            {/* Columna Izquierda: Catálogo */}
+            {/* Columna Izquierda: Catálogo (sin cambios) */}
             <div className="lg:col-span-3 bg-white rounded-xl shadow-sm flex flex-col">
                 <div className="p-4 border-b">
                     <h2 className="text-lg font-bold text-slate-800">Búsqueda y Catálogo</h2>
@@ -99,13 +154,12 @@ const PointOfSale: React.FC = () => {
                 </div>
             </div>
 
-            {/* Columna Central: Carrito */}
+            {/* Columna Central: Carrito (sin cambios) */}
             <div className="lg:col-span-4 bg-white rounded-xl shadow-sm flex flex-col">
                 <div className="p-4 border-b">
                     <h2 className="text-lg font-bold text-slate-800">Carrito de Compra</h2>
                 </div>
                 <div className="p-4 flex gap-4 items-center border-b">
-                    {/* 3. Usamos allCustomers (del store) en lugar de mockCustomers */}
                     <select value={selectedCustomer} onChange={e => setSelectedCustomer(e.target.value)} className="flex-1 border border-slate-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition">
                         <option value="final">Consumidor Final</option>
                         {allCustomers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
@@ -158,18 +212,27 @@ const PointOfSale: React.FC = () => {
                 </div>
             </div>
 
-            {/* Columna Derecha: Pago */}
+            {/* Columna Derecha: Pago (Actualizada) */}
             <div className="lg:col-span-3 bg-white rounded-xl shadow-sm flex flex-col">
                 <div className="p-4 border-b">
                     <h2 className="text-lg font-bold text-slate-800">Finalización y Métodos de Pago</h2>
                 </div>
                 <div className="p-4 space-y-3">
-                    {['efectivo', 'debito', 'cheque'].map(method => (
-                        <button key={method} onClick={() => setPaymentMethod(method as any)} className={`w-full text-left p-4 border rounded-lg transition ${paymentMethod === method ? 'bg-blue-50 border-blue-500 ring-2 ring-blue-500' : 'bg-white border-slate-300'}`}>
+                    {/* 8. Añadir 'cuenta corriente' como método de pago */}
+                    {['efectivo', 'debito', 'cheque', 'cuenta corriente'].map(method => (
+                        <button 
+                            key={method} 
+                            onClick={() => setPaymentMethod(method as any)} 
+                            className={`w-full text-left p-4 border rounded-lg transition ${paymentMethod === method ? 'bg-blue-50 border-blue-500 ring-2 ring-blue-500' : 'bg-white border-slate-300'} ${method === 'cuenta corriente' && selectedCustomer === 'final' ? 'opacity-50 cursor-not-allowed' : ''}`}
+                            // 9. Deshabilitar 'cuenta corriente' si es consumidor final
+                            disabled={method === 'cuenta corriente' && selectedCustomer === 'final'}
+                        >
                             {method.charAt(0).toUpperCase() + method.slice(1)}
+                            {method === 'cuenta corriente' && selectedCustomer === 'final' && <span className="text-xs text-red-500 ml-2">(Solo clientes)</span>}
                         </button>
                     ))}
                 </div>
+                {/* 10. Actualizar lógica de vuelto/cambio */}
                 {paymentMethod === 'efectivo' && (
                     <div className="p-4 border-t space-y-4">
                         <div>
