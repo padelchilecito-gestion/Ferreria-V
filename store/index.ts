@@ -1,6 +1,6 @@
 // store/index.ts
 import { configureStore, combineReducers } from '@reduxjs/toolkit';
-import storage from 'redux-persist/lib/storage'; // Importa el storage (localStorage por defecto)
+import storage from 'redux-persist/lib/storage'; 
 import {
   persistStore,
   persistReducer,
@@ -17,40 +17,38 @@ import cartReducer from './cartSlice';
 import customersReducer from './customersSlice';
 import suppliersReducer from './suppliersSlice';
 import checksReducer from './checksSlice';
+import salesReducer from './salesSlice'; // 1. Importar el nuevo reducer
 
-// 1. Combinamos todos los reducers en un 'rootReducer'
+// 2. Combinamos todos los reducers
 const rootReducer = combineReducers({
   products: productsReducer,
   cart: cartReducer,
   customers: customersReducer,
   suppliers: suppliersReducer,
   checks: checksReducer,
+  sales: salesReducer, // 3. Añadir el reducer de ventas
 });
 
-// 2. Configuración de persistencia
 const persistConfig = {
-  key: 'root', // Clave principal en localStorage
-  storage, // El motor de almacenamiento (localStorage)
-  whitelist: ['products', 'customers', 'suppliers', 'checks'], // Slices que SÍ queremos persistir
-  // 'cart' no se incluye aquí para que se vacíe al recargar (opcional, pero común)
+  key: 'root', 
+  storage, 
+  // 4. Añadir 'sales' a la whitelist para que se guarde en localStorage
+  whitelist: ['products', 'customers', 'suppliers', 'checks', 'sales'],
+  // 'cart' sigue fuera para que se limpie al recargar
 };
 
-// 3. Creamos un reducer "persistido"
 const persistedReducer = persistReducer(persistConfig, rootReducer);
 
-// 4. Configuramos el store para que use el reducer persistido
 export const store = configureStore({
-  reducer: persistedReducer, // Usamos el reducer con persistencia
+  reducer: persistedReducer,
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
       serializableCheck: {
-        // Ignorar estas acciones que usa redux-persist
         ignoredActions: [FLUSH, REHYDRATE, PAUSE, PERSIST, PURGE, REGISTER],
       },
     }),
 });
 
-// 5. Exportamos el 'persistor' que usará nuestra UI
 export const persistor = persistStore(store);
 
 export type RootState = ReturnType<typeof store.getState>;
