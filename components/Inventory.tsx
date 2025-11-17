@@ -1,5 +1,5 @@
 // components/Inventory.tsx
-import React, { useState, useMemo } from 'react'; // 1. Importar useMemo
+import React, { useState, useMemo } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState, AppDispatch } from '../store';
 import { Product } from '../types';
@@ -7,6 +7,7 @@ import { PlusIcon, TrashIcon, PencilIcon } from './Icons';
 import AddProductModal from './AddProductModal';
 import EditProductModal from './EditProductModal';
 import { deleteProduct } from '../store/productsSlice';
+import AdjustStockModal from './AdjustStockModal'; // 1. Importar el nuevo modal
 
 const StockBadge: React.FC<{ stock: number; minStock: number }> = ({ stock, minStock }) => {
     if (stock === 0) {
@@ -24,16 +25,19 @@ const Inventory: React.FC = () => {
     const dispatch = useDispatch<AppDispatch>(); 
 
     const [searchTerm, setSearchTerm] = useState('');
-    // 2. Estados para los filtros <select>
     const [categoryFilter, setCategoryFilter] = useState('all');
     const [supplierFilter, setSupplierFilter] = useState('all');
     const [stockLevelFilter, setStockLevelFilter] = useState('all');
 
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    
+    // 2. Estado para el modal de ajuste y el producto seleccionado
+    const [isAdjustModalOpen, setIsAdjustModalOpen] = useState(false);
+    const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
+
     const [currentProduct, setCurrentProduct] = useState<Product | null>(null);
 
-    // 3. Obtenemos listas únicas para los filtros (con useMemo para eficiencia)
     const uniqueCategories = useMemo(() => {
         return [...new Set(products.map(p => p.category).filter(Boolean))];
     }, [products]);
@@ -54,24 +58,34 @@ const Inventory: React.FC = () => {
         }
     };
     
-    // 4. Lógica de filtrado combinada
+    // 3. Lógica para manejar la selección (solo un producto a la vez)
+    const handleCheckboxChange = (productId: string) => {
+        if (selectedProductId === productId) {
+            setSelectedProductId(null); // Deseleccionar si ya estaba seleccionado
+            setCurrentProduct(null);
+        } else {
+            setSelectedProductId(productId);
+            const product = products.find(p => p.id === productId);
+            setCurrentProduct(product || null);
+        }
+    };
+    
+    // 4. Lógica para abrir el modal de ajuste
+    const handleOpenAdjustModal = () => {
+        if (currentProduct) {
+            setIsAdjustModalOpen(true);
+        }
+    };
+
     const filteredProducts = products.filter(p => {
-        // Filtro de búsqueda de texto
         const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
                               p.sku.toLowerCase().includes(searchTerm.toLowerCase());
-        
-        // Filtro de Categoría
         const matchesCategory = categoryFilter === 'all' || p.category === categoryFilter;
-
-        // Filtro de Proveedor
         const matchesSupplier = supplierFilter === 'all' || p.supplier === supplierFilter;
-
-        // Filtro de Nivel de Stock
         const matchesStockLevel = stockLevelFilter === 'all' ||
             (stockLevelFilter === 'low' && p.stock <= p.minStock && p.stock > 0) ||
             (stockLevelFilter === 'out' && p.stock === 0) ||
             (stockLevelFilter === 'high' && p.stock > p.minStock);
-        
         return matchesSearch && matchesCategory && matchesSupplier && matchesStockLevel;
     });
 
@@ -94,7 +108,6 @@ const Inventory: React.FC = () => {
                                 onChange={e => setSearchTerm(e.target.value)}
                             />
                         </div>
-                        {/* 5. Conectar los <select> a sus estados y llenarlos dinámicamente */}
                         <div className="flex gap-2 w-full md:w-auto">
                             <select 
                                 className="p-2 border border-slate-300 rounded-lg"
@@ -124,7 +137,14 @@ const Inventory: React.FC = () => {
                             </select>
                         </div>
                         <div className="flex gap-2 w-full md:w-auto">
-                            <button className="w-full md:w-auto flex-1 whitespace-nowrap px-4 py-2 border border-slate-300 rounded-lg text-slate-700 hover:bg-slate-50">Ajuste de Stock</button>
+                            {/* 5. Conectar el botón de Ajuste de Stock */}
+                            <button 
+                                className="w-full md:w-auto flex-1 whitespace-nowrap px-4 py-2 border border-slate-300 rounded-lg text-slate-700 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                                onClick={handleOpenAdjustModal}
+                                disabled={!selectedProductId}
+                            >
+                                Ajuste de Stock
+                            </button>
                             <button 
                                 onClick={() => setIsAddModalOpen(true)}
                                 className="w-full md:w-auto flex-1 whitespace-nowrap flex items-center justify-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
@@ -139,7 +159,7 @@ const Inventory: React.FC = () => {
                         <table className="w-full text-left">
                             <thead className="text-xs text-slate-500 uppercase bg-slate-50">
                                 <tr>
-                                    <th className="px-4 py-3"><input type="checkbox" /></th>
+                                    <th className="px-4 py-3"><input type="checkbox" disabled /></th>
                                     <th className="px-4 py-3">Código/SKU</th>
                                     <th className="px-4 py-3">Nombre</th>
                                     <th className="px-4 py-3">Proveedor</th>
@@ -150,10 +170,16 @@ const Inventory: React.FC = () => {
                                 </tr>
                             </thead>
                             <tbody>
-                                {/* 6. Mapear sobre filteredProducts */}
                                 {filteredProducts.map(product => (
-                                    <tr key={product.id} className="border-b border-slate-100 hover:bg-slate-50">
-                                        <td className="px-4 py-3"><input type="checkbox" /></td>
+                                    <tr key={product.id} className={`border-b border-slate-100 ${selectedProductId === product.id ? 'bg-blue-50' : 'hover:bg-slate-50'}`}>
+                                        {/* 6. Conectar checkbox */}
+                                        <td className="px-4 py-3">
+                                            <input 
+                                                type="checkbox" 
+                                                checked={selectedProductId === product.id}
+                                                onChange={() => handleCheckboxChange(product.id)}
+                                            />
+                                        </td>
                                         <td className="px-4 py-3 font-medium text-slate-700">{product.sku}</td>
                                         <td className="px-4 py-3 text-slate-800">{product.name}</td>
                                         <td className="px-4 py-3 text-slate-600">{product.supplier}</td>
@@ -184,11 +210,22 @@ const Inventory: React.FC = () => {
                 </div>
             </div>
 
+            {/* 7. Renderizar los 3 modales */}
             <AddProductModal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} />
             <EditProductModal 
                 isOpen={isEditModalOpen} 
                 onClose={() => setIsEditModalOpen(false)} 
                 product={currentProduct} 
+            />
+            <AdjustStockModal
+                isOpen={isAdjustModalOpen}
+                onClose={() => {
+                    setIsAdjustModalOpen(false);
+                    // Deseleccionamos el producto al cerrar el modal
+                    setSelectedProductId(null);
+                    setCurrentProduct(null);
+                }}
+                product={currentProduct}
             />
         </>
     );
