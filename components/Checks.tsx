@@ -1,5 +1,5 @@
 // components/Checks.tsx
-import React, { useState } from 'react'; // 1. Importar useState
+import React, { useState } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState, AppDispatch } from '../store';
 import { Check } from '../types';
@@ -21,8 +21,9 @@ const Checks: React.FC = () => {
     const checks = useSelector((state: RootState) => state.checks.checks);
     const dispatch = useDispatch<AppDispatch>(); 
 
-    // 2. Estado para la búsqueda
     const [searchTerm, setSearchTerm] = useState('');
+    // 1. Estado para el filtro de estado
+    const [statusFilter, setStatusFilter] = useState('all');
 
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
@@ -33,11 +34,15 @@ const Checks: React.FC = () => {
         setIsUpdateModalOpen(true);
     };
 
-    // 3. Filtramos los cheques
-    const filteredChecks = checks.filter(c => 
-        c.issuer.toLowerCase().includes(searchTerm.toLowerCase()) || 
-        c.number.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    // 2. Lógica de filtrado combinada
+    const filteredChecks = checks.filter(c => {
+        const matchesSearch = c.issuer.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                              c.number.toLowerCase().includes(searchTerm.toLowerCase());
+        
+        const matchesStatus = statusFilter === 'all' || c.status === statusFilter;
+        
+        return matchesSearch && matchesStatus;
+    });
 
     return (
         <> 
@@ -49,7 +54,6 @@ const Checks: React.FC = () => {
 
                 <div className="bg-white p-4 rounded-xl shadow-sm">
                     <div className="flex flex-col md:flex-row justify-between items-center gap-4 mb-4">
-                        {/* 4. Conectamos el input al estado */}
                         <input 
                             type="text" 
                             placeholder="Buscar por número o emisor..." 
@@ -58,12 +62,17 @@ const Checks: React.FC = () => {
                             onChange={e => setSearchTerm(e.target.value)}
                         />
                         <div className="flex gap-2 w-full md:w-auto">
-                            <select className="p-2 border border-slate-300 rounded-lg">
-                                <option>Filtrar por estado</option>
-                                <option>En cartera</option>
-                                <option>Depositado</option>
-                                <option>Cobrado</option>
-                                <option>Rechazado</option>
+                            {/* 3. Conectar el <select> al estado */}
+                            <select 
+                                className="p-2 border border-slate-300 rounded-lg"
+                                value={statusFilter}
+                                onChange={e => setStatusFilter(e.target.value)}
+                            >
+                                <option value="all">Filtrar por estado (Todos)</option>
+                                <option value="En cartera">En cartera</option>
+                                <option value="Depositado">Depositado</option>
+                                <option value="Cobrado">Cobrado</option>
+                                <option value="Rechazado">Rechazado</option>
                             </select>
                             <input type="date" className="p-2 border border-slate-300 rounded-lg" />
                         </div>
@@ -91,7 +100,7 @@ const Checks: React.FC = () => {
                                 </tr>
                             </thead>
                             <tbody>
-                                {/* 5. Mapeamos sobre filteredChecks */}
+                                {/* 4. Mapear sobre filteredChecks */}
                                 {filteredChecks.map(check => (
                                     <tr key={check.id} className="border-b border-slate-100 hover:bg-slate-50">
                                         <td className="px-4 py-3 font-medium text-slate-700">{check.bank}</td>
