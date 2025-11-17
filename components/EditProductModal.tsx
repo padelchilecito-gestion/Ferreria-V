@@ -23,8 +23,10 @@ const EditProductModal: React.FC<EditProductModalProps> = ({ isOpen, onClose, pr
   const [minStock, setMinStock] = useState(0);
   const [costPrice, setCostPrice] = useState(0);
   const [retailPrice, setRetailPrice] = useState(0);
+  // 1. Añadir estado para precio mayorista
+  const [wholesalePrice, setWholesalePrice] = useState(0);
 
-  // Efecto para rellenar el formulario cuando el producto cambia
+  // 2. Rellenar el formulario cuando el producto cambia
   useEffect(() => {
     if (product) {
       setName(product.name);
@@ -35,6 +37,7 @@ const EditProductModal: React.FC<EditProductModalProps> = ({ isOpen, onClose, pr
       setMinStock(product.minStock);
       setCostPrice(product.costPrice);
       setRetailPrice(product.retailPrice);
+      setWholesalePrice(product.wholesalePrice || 0); // Añadir
     }
   }, [product, isOpen]);
 
@@ -52,6 +55,7 @@ const EditProductModal: React.FC<EditProductModalProps> = ({ isOpen, onClose, pr
       minStock: Number(minStock) || 0,
       costPrice: Number(costPrice) || 0,
       retailPrice: Number(retailPrice) || 0,
+      wholesalePrice: Number(wholesalePrice) || 0, // 3. Añadir al producto actualizado
     };
 
     dispatch(updateProduct(updatedProduct));
@@ -80,7 +84,7 @@ const EditProductModal: React.FC<EditProductModalProps> = ({ isOpen, onClose, pr
 
         <form onSubmit={handleSubmit}>
           <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
-            {/* El formulario es idéntico al de AddProductModal */}
+            
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="text-sm font-medium text-slate-600">Nombre del Producto</label>
@@ -111,7 +115,9 @@ const EditProductModal: React.FC<EditProductModalProps> = ({ isOpen, onClose, pr
                 <input type="number" value={minStock} onChange={e => setMinStock(Number(e.target.value))} className="w-full mt-1 p-2 border border-slate-300 rounded-lg" />
               </div>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            
+            {/* 4. Añadir campo de Precio Mayorista */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <label className="text-sm font-medium text-slate-600">Precio de Costo</label>
                 <input type="number" step="0.01" value={costPrice} onChange={e => setCostPrice(Number(e.target.value))} className="w-full mt-1 p-2 border border-slate-300 rounded-lg" />
@@ -120,7 +126,12 @@ const EditProductModal: React.FC<EditProductModalProps> = ({ isOpen, onClose, pr
                 <label className="text-sm font-medium text-slate-600">Precio Minorista</label>
                 <input type="number" step="0.01" value={retailPrice} onChange={e => setRetailPrice(Number(e.target.value))} className="w-full mt-1 p-2 border border-slate-300 rounded-lg" />
               </div>
+              <div>
+                <label className="text-sm font-medium text-slate-600">Precio Mayorista</label>
+                <input type="number" step="0.01" value={wholesalePrice} onChange={e => setWholesalePrice(Number(e.target.value))} className="w-full mt-1 p-2 border border-slate-300 rounded-lg" />
+              </div>
             </div>
+
           </div>
 
           <div className="p-4 border-t bg-slate-50 rounded-b-xl flex justify-end gap-3">
