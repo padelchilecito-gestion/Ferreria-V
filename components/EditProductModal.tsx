@@ -55,7 +55,7 @@ const EditProductModal: React.FC<EditProductModalProps> = ({ isOpen, onClose, pr
       minStock: Number(minStock) || 0,
       costPrice: Number(costPrice) || 0,
       retailPrice: Number(retailPrice) || 0,
-      wholesalePrice: Number(wholesalePrice) || 0, // 3. Añadir al producto actualizado
+      wholesalePrice: Number(wholesalePrice) || Number(retailPrice), // 3. Añadir. Si es 0, usa el minorista.
     };
 
     dispatch(updateProduct(updatedProduct));
