@@ -1,37 +1,32 @@
 import React, { useState } from 'react';
-// 1. Ya no importamos mockProducts directamente
-// import { mockProducts, mockCustomers } from '../data/mockData';
-import { mockCustomers } from '../data/mockData'; // Mantenemos mockCustomers por ahora
+// 1. Ya no importamos mockCustomers
 import { Product, CartItem, Customer } from '../types';
 import { SearchIcon, TrashIcon, CheckCircleIcon } from './Icons';
 
-// 2. Importar hooks de Redux y nuestros Tipos y Acciones
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState, AppDispatch } from '../store';
 import { addToCart, updateQuantity, removeFromCart, clearCart } from '../store/cartSlice';
-import { reduceStock } from '../store/productsSlice'; // <-- ¡Importante!
+import { reduceStock } from '../store/productsSlice'; 
 
 const PointOfSale: React.FC = () => {
     const [searchTerm, setSearchTerm] = useState('');
-    // 3. El 'cart' ya no se maneja con useState
-    // const [cart, setCart] = useState<CartItem[]>([]);
     const [selectedCustomer, setSelectedCustomer] = useState<string>('final');
     const [priceType, setPriceType] = useState<'retail' | 'wholesale'>('retail');
     const [paymentMethod, setPaymentMethod] = useState<'efectivo' | 'debito' | 'cheque'>('efectivo');
     const [paidAmount, setPaidAmount] = useState(0);
 
-    // 4. Obtener el 'dispatch' y leer el estado desde el store de Redux
     const dispatch = useDispatch<AppDispatch>();
     const cart = useSelector((state: RootState) => state.cart.items);
     const allProducts = useSelector((state: RootState) => state.products.products);
+    
+    // 2. Leemos los clientes desde el store de Redux
+    const allCustomers = useSelector((state: RootState) => state.customers.customers);
 
-    // 5. Los productos filtrados ahora usan 'allProducts' del store
     const filteredProducts = allProducts.filter(p => 
         p.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
         p.sku.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
-    // 6. Las funciones de manipulación del carrito ahora "despachan" acciones
     const dispatchAddToCart = (product: Product) => {
         dispatch(addToCart(product));
     };
@@ -48,31 +43,28 @@ const PointOfSale: React.FC = () => {
         dispatch(removeFromCart(productId));
     };
 
-    // 7. Calcular totales (esto sigue igual)
     const subtotal = cart.reduce((acc, item) => acc + (item.retailPrice * item.quantity), 0);
-    const tax = subtotal * 0.21; // Assuming 21% IVA
+    const tax = subtotal * 0.21;
     const total = subtotal + tax;
     const change = paidAmount - total;
 
-    // 8. ¡La magia! Esta función finaliza la venta
     const handleFinalizeSale = () => {
-        // Despacha la acción 'reduceStock' por CADA item en el carrito
+        // Lógica de reducción de stock y limpieza de carrito (ya implementada)
         cart.forEach(item => {
             dispatch(reduceStock({ id: item.id, quantity: item.quantity }));
         });
         
-        // Despacha la acción para vaciar el carrito
         dispatch(clearCart());
         
-        // Resetea el estado local del POS
         setPaidAmount(0);
         setSelectedCustomer('final');
+        
+        // AQUÍ ES DONDE AÑADIREMOS LA LÓGICA DE 'addSale' Y 'updateCustomerBalance'
     };
 
-    // 9. El JSX se actualiza para usar las nuevas funciones de dispatch
     return (
         <div className="grid grid-cols-1 lg:grid-cols-10 gap-6 h-[calc(100vh-8rem)]">
-            {/* Left Column: Product Catalog */}
+            {/* Columna Izquierda: Catálogo */}
             <div className="lg:col-span-3 bg-white rounded-xl shadow-sm flex flex-col">
                 <div className="p-4 border-b">
                     <h2 className="text-lg font-bold text-slate-800">Búsqueda y Catálogo</h2>
@@ -95,7 +87,6 @@ const PointOfSale: React.FC = () => {
                     </div>
                 </div>
                 <div className="flex-1 overflow-y-auto p-4 space-y-2">
-                    {/* Usamos 'filteredProducts' que ahora lee del store */}
                     {filteredProducts.map(product => (
                         <div key={product.id} onClick={() => dispatchAddToCart(product)} className="p-3 border rounded-lg flex justify-between items-center hover:bg-blue-50 cursor-pointer transition">
                             <div>
@@ -108,15 +99,16 @@ const PointOfSale: React.FC = () => {
                 </div>
             </div>
 
-            {/* Middle Column: Shopping Cart */}
+            {/* Columna Central: Carrito */}
             <div className="lg:col-span-4 bg-white rounded-xl shadow-sm flex flex-col">
                 <div className="p-4 border-b">
                     <h2 className="text-lg font-bold text-slate-800">Carrito de Compra</h2>
                 </div>
                 <div className="p-4 flex gap-4 items-center border-b">
+                    {/* 3. Usamos allCustomers (del store) en lugar de mockCustomers */}
                     <select value={selectedCustomer} onChange={e => setSelectedCustomer(e.target.value)} className="flex-1 border border-slate-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition">
                         <option value="final">Consumidor Final</option>
-                        {mockCustomers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                        {allCustomers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                     </select>
                     <div className="flex rounded-lg border border-slate-300">
                         <button onClick={() => setPriceType('retail')} className={`px-3 py-2 text-sm rounded-l-md ${priceType === 'retail' ? 'bg-blue-600 text-white' : 'bg-white text-slate-700'}`}>Minorista</button>
@@ -124,7 +116,6 @@ const PointOfSale: React.FC = () => {
                     </div>
                 </div>
                 <div className="flex-1 overflow-y-auto p-4">
-                    {/* Usamos 'cart' que ahora lee del store */}
                     {cart.length === 0 ? (
                         <div className="text-center text-slate-500 pt-10">El carrito está vacío</div>
                     ) : (
@@ -167,7 +158,7 @@ const PointOfSale: React.FC = () => {
                 </div>
             </div>
 
-            {/* Right Column: Payment */}
+            {/* Columna Derecha: Pago */}
             <div className="lg:col-span-3 bg-white rounded-xl shadow-sm flex flex-col">
                 <div className="p-4 border-b">
                     <h2 className="text-lg font-bold text-slate-800">Finalización y Métodos de Pago</h2>
@@ -195,7 +186,6 @@ const PointOfSale: React.FC = () => {
                 )}
                 <div className="flex-1"></div>
                 <div className="p-4">
-                    {/* Usamos la nueva función 'handleFinalizeSale' */}
                     <button 
                         onClick={handleFinalizeSale}
                         className="w-full flex items-center justify-center gap-2 bg-green-600 text-white font-bold py-4 rounded-lg hover:bg-green-700 transition shadow-sm disabled:bg-slate-300" 
