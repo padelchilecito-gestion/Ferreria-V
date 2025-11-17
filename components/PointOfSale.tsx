@@ -1,31 +1,44 @@
-import React, { useState } from 'react';
-import { Product, CartItem, Customer, Sale } from '../types'; // 1. Importar 'Sale'
+// components/PointOfSale.tsx
+import React, { useState, useMemo } from 'react'; // 1. Importar useMemo
+import { Product, CartItem, Customer, Sale } from '../types';
 import { SearchIcon, TrashIcon, CheckCircleIcon } from './Icons';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState, AppDispatch } from '../store';
 import { addToCart, updateQuantity, removeFromCart, clearCart } from '../store/cartSlice';
 import { reduceStock } from '../store/productsSlice';
-import { nanoid } from 'nanoid'; // 2. Importar nanoid para generar IDs de venta
-import { addSale } from '../store/salesSlice'; // 3. Importar la acción de añadir venta
-import { updateCustomerBalance } from '../store/customersSlice'; // 4. Importar la acción de actualizar saldo
+import { nanoid } from 'nanoid';
+import { addSale } from '../store/salesSlice';
+import { updateCustomerBalance } from '../store/customersSlice';
 
 const PointOfSale: React.FC = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedCustomer, setSelectedCustomer] = useState<string>('final');
     const [priceType, setPriceType] = useState<'retail' | 'wholesale'>('retail');
-    // 5. Añadir 'cuenta corriente' a los métodos de pago
     const [paymentMethod, setPaymentMethod] = useState<'efectivo' | 'debito' | 'cheque' | 'cuenta corriente'>('efectivo');
     const [paidAmount, setPaidAmount] = useState(0);
+
+    // 2. Estado para el filtro de categoría
+    const [categoryFilter, setCategoryFilter] = useState('all');
 
     const dispatch = useDispatch<AppDispatch>();
     const cart = useSelector((state: RootState) => state.cart.items);
     const allProducts = useSelector((state: RootState) => state.products.products);
     const allCustomers = useSelector((state: RootState) => state.customers.customers);
 
-    const filteredProducts = allProducts.filter(p => 
-        p.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-        p.sku.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    // 3. Obtener categorías únicas (igual que en Inventory.tsx)
+    const uniqueCategories = useMemo(() => {
+        return [...new Set(allProducts.map(p => p.category).filter(Boolean))];
+    }, [allProducts]);
+
+    // 4. Lógica de filtrado combinada
+    const filteredProducts = allProducts.filter(p => {
+        const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                              p.sku.toLowerCase().includes(searchTerm.toLowerCase());
+        
+        const matchesCategory = categoryFilter === 'all' || p.category === categoryFilter;
+        
+        return matchesSearch && matchesCategory;
+    });
 
     // --- Funciones del carrito (sin cambios) ---
     const dispatchAddToCart = (product: Product) => {
@@ -46,40 +59,28 @@ const PointOfSale: React.FC = () => {
     // --- Fin Funciones del carrito ---
 
     const subtotal = cart.reduce((acc, item) => acc + (item.retailPrice * item.quantity), 0);
-    const tax = subtotal * 0.21;
+    const tax = subtotal * 0.21; // <-- ¡Esto sigue hardcodeado! Lo arreglaremos después.
     const total = subtotal + tax;
     
-    // 6. Lógica de pago actualizada
-    // Si es 'cuenta corriente', el monto pagado es 0, todo va al saldo.
-    // Si es 'efectivo', usamos el monto ingresado.
-    // Si es 'debito' o 'cheque', se asume que paga el total en el momento.
     const getPaidAmount = () => {
         switch(paymentMethod) {
-            case 'efectivo':
-                return paidAmount;
-            case 'debito':
-            case 'cheque':
-                return total;
-            case 'cuenta corriente':
-                return 0;
-            default:
-                return 0;
+            case 'efectivo': return paidAmount;
+            case 'debito': case 'cheque': return total;
+            case 'cuenta corriente': return 0;
+            default: return 0;
         }
     };
     
     const finalPaidAmount = getPaidAmount();
-    const dueAmount = total - finalPaidAmount; // El saldo que queda por pagar en esta venta
-    const change = finalPaidAmount > total ? finalPaidAmount - total : 0; // El vuelto (solo para efectivo)
+    const dueAmount = total - finalPaidAmount;
+    const change = finalPaidAmount > total ? finalPaidAmount - total : 0;
 
 
-    // 7. Lógica de finalización de venta ACTUALIZADA
     const handleFinalizeSale = () => {
-        // Obtenemos el nombre del cliente
         const customerName = selectedCustomer === 'final'
             ? 'Consumidor Final'
             : allCustomers.find(c => c.id === selectedCustomer)?.name || 'Cliente Eliminado';
 
-        // 1. Creamos el objeto de Venta
         const newSale: Sale = {
             id: nanoid(),
             date: new Date().toISOString(),
@@ -91,27 +92,20 @@ const PointOfSale: React.FC = () => {
             total: total,
             paymentMethod: paymentMethod,
             paidAmount: finalPaidAmount,
-            dueAmount: dueAmount, // El saldo de ESTA venta
+            dueAmount: dueAmount,
         };
 
-        // 2. Despachamos la acción para guardar la venta
         dispatch(addSale(newSale));
 
-        // 3. Despachamos la reducción de stock (como antes)
         cart.forEach(item => {
             dispatch(reduceStock({ id: item.id, quantity: item.quantity }));
         });
 
-        // 4. Actualizamos el saldo del cliente si no es "Consumidor Final"
         if (selectedCustomer !== 'final' && dueAmount !== 0) {
-            // Despachamos la acción para sumar el saldo pendiente a la Cta. Cte.
             dispatch(updateCustomerBalance({ customerId: selectedCustomer, dueAmount: dueAmount }));
         }
         
-        // 5. Limpiamos el carrito (como antes)
         dispatch(clearCart());
-        
-        // 6. Reseteamos el estado local del POS
         setPaidAmount(0);
         setSelectedCustomer('final');
         setPaymentMethod('efectivo');
@@ -119,7 +113,7 @@ const PointOfSale: React.FC = () => {
 
     return (
         <div className="grid grid-cols-1 lg:grid-cols-10 gap-6 h-[calc(100vh-8rem)]">
-            {/* Columna Izquierda: Catálogo (sin cambios) */}
+            {/* Columna Izquierda: Catálogo (Actualizado) */}
             <div className="lg:col-span-3 bg-white rounded-xl shadow-sm flex flex-col">
                 <div className="p-4 border-b">
                     <h2 className="text-lg font-bold text-slate-800">Búsqueda y Catálogo</h2>
@@ -134,14 +128,28 @@ const PointOfSale: React.FC = () => {
                         />
                     </div>
                 </div>
-                <div className="p-4">
-                    <div className="flex gap-2 mb-4">
-                        {['Herramientas', 'Tornillería', 'Pintura', 'Electricidad'].map(cat => (
-                            <button key={cat} className="px-3 py-1 text-sm bg-slate-100 text-slate-600 rounded-full hover:bg-slate-200">{cat}</button>
+                {/* 5. Filtros de Categoría Dinámicos */}
+                <div className="p-4 overflow-x-auto">
+                    <div className="flex gap-2 mb-4 whitespace-nowrap">
+                        <button 
+                            onClick={() => setCategoryFilter('all')}
+                            className={`px-3 py-1 text-sm rounded-full transition-colors ${categoryFilter === 'all' ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+                        >
+                            Todas
+                        </button>
+                        {uniqueCategories.map(cat => (
+                            <button 
+                                key={cat} 
+                                onClick={() => setCategoryFilter(cat)}
+                                className={`px-3 py-1 text-sm rounded-full transition-colors ${categoryFilter === cat ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+                            >
+                                {cat}
+                            </button>
                         ))}
                     </div>
                 </div>
                 <div className="flex-1 overflow-y-auto p-4 space-y-2">
+                    {/* 6. Usar filteredProducts (ya estaba hecho) */}
                     {filteredProducts.map(product => (
                         <div key={product.id} onClick={() => dispatchAddToCart(product)} className="p-3 border rounded-lg flex justify-between items-center hover:bg-blue-50 cursor-pointer transition">
                             <div>
@@ -212,19 +220,17 @@ const PointOfSale: React.FC = () => {
                 </div>
             </div>
 
-            {/* Columna Derecha: Pago (Actualizada) */}
+            {/* Columna Derecha: Pago (sin cambios) */}
             <div className="lg:col-span-3 bg-white rounded-xl shadow-sm flex flex-col">
                 <div className="p-4 border-b">
                     <h2 className="text-lg font-bold text-slate-800">Finalización y Métodos de Pago</h2>
                 </div>
                 <div className="p-4 space-y-3">
-                    {/* 8. Añadir 'cuenta corriente' como método de pago */}
                     {['efectivo', 'debito', 'cheque', 'cuenta corriente'].map(method => (
                         <button 
                             key={method} 
                             onClick={() => setPaymentMethod(method as any)} 
                             className={`w-full text-left p-4 border rounded-lg transition ${paymentMethod === method ? 'bg-blue-50 border-blue-500 ring-2 ring-blue-500' : 'bg-white border-slate-300'} ${method === 'cuenta corriente' && selectedCustomer === 'final' ? 'opacity-50 cursor-not-allowed' : ''}`}
-                            // 9. Deshabilitar 'cuenta corriente' si es consumidor final
                             disabled={method === 'cuenta corriente' && selectedCustomer === 'final'}
                         >
                             {method.charAt(0).toUpperCase() + method.slice(1)}
@@ -232,7 +238,6 @@ const PointOfSale: React.FC = () => {
                         </button>
                     ))}
                 </div>
-                {/* 10. Actualizar lógica de vuelto/cambio */}
                 {paymentMethod === 'efectivo' && (
                     <div className="p-4 border-t space-y-4">
                         <div>
