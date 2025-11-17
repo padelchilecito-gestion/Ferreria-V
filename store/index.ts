@@ -18,7 +18,8 @@ import customersReducer from './customersSlice';
 import suppliersReducer from './suppliersSlice';
 import checksReducer from './checksSlice';
 import salesReducer from './salesSlice';
-import settingsReducer from './settingsSlice'; // 1. Importar el nuevo reducer
+import settingsReducer from './settingsSlice';
+import purchasesReducer from './purchasesSlice'; // 1. Importar el nuevo reducer
 
 // 2. Combinamos todos los reducers
 const rootReducer = combineReducers({
@@ -28,14 +29,15 @@ const rootReducer = combineReducers({
   suppliers: suppliersReducer,
   checks: checksReducer,
   sales: salesReducer,
-  settings: settingsReducer, // 3. Añadir el reducer de configuración
+  settings: settingsReducer,
+  purchases: purchasesReducer, // 3. Añadir el reducer de compras
 });
 
 const persistConfig = {
   key: 'root', 
   storage, 
-  // 4. Añadir 'settings' a la whitelist
-  whitelist: ['products', 'customers', 'suppliers', 'checks', 'sales', 'settings'],
+  // 4. Añadir 'purchases' a la whitelist
+  whitelist: ['products', 'customers', 'suppliers', 'checks', 'sales', 'settings', 'purchases'],
   // 'cart' sigue fuera para que se limpie al recargar
 };
 
@@ -46,7 +48,6 @@ export const store = configureStore({
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
       serializableCheck: {
-        // Ignorar estas acciones que usa redux-persist
         ignoredActions: [FLUSH, REHYDRATE, PAUSE, PERSIST, PURGE, REGISTER],
       },
     }),
