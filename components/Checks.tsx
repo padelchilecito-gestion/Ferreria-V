@@ -1,10 +1,11 @@
+// components/Checks.tsx
 import React, { useState } from 'react';
 import { useSelector, useDispatch } from 'react-redux'; // 1. Importar hooks
 import { RootState, AppDispatch } from '../store';
 import { Check } from '../types';
 import { PlusIcon, PencilIcon } from './Icons'; // 2. Importar iconos
 import AddCheckModal from './AddCheckModal'; // 3. Importar modales
-import UpdateCheckStatusModal from './UpdateCheckStatusModal';
+import UpdateCheckStatusModal from './UpdateCheckStatusModal'; // 4. Importar modal de actualización
 
 const StatusBadge: React.FC<{ status: Check['status'] }> = ({ status }) => {
     const styles = {
@@ -17,23 +18,23 @@ const StatusBadge: React.FC<{ status: Check['status'] }> = ({ status }) => {
 };
 
 const Checks: React.FC = () => {
-    // 4. Leer cheques desde el store global
+    // 5. Leer cheques desde el store global
     const checks = useSelector((state: RootState) => state.checks.checks);
     const dispatch = useDispatch<AppDispatch>(); // (No lo usamos aquí, pero es buena práctica)
 
-    // 5. Estado local para AMBOS modales
+    // 6. Estado local para AMBOS modales
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
     const [currentCheck, setCurrentCheck] = useState<Check | null>(null);
 
-    // 6. Función para abrir el modal de actualización
+    // 7. Función para abrir el modal de actualización
     const handleUpdateStatus = (check: Check) => {
         setCurrentCheck(check);
         setIsUpdateModalOpen(true);
     };
 
     return (
-        <> {/* 7. Envolver en Fragment */}
+        <> {/* 8. Envolver en Fragment */}
             <div className="space-y-6">
                 <div>
                     <h1 className="text-2xl font-bold text-slate-800 hidden lg:block">Gestión de Cartera de Cheques</h1>
@@ -53,7 +54,7 @@ const Checks: React.FC = () => {
                             </select>
                             <input type="date" className="p-2 border border-slate-300 rounded-lg" />
                         </div>
-                        {/* 8. Botón para añadir cheque */}
+                        {/* 9. Botón para añadir cheque */}
                         <button 
                             onClick={() => setIsAddModalOpen(true)}
                             className="w-full md:w-auto whitespace-nowrap flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
@@ -78,7 +79,7 @@ const Checks: React.FC = () => {
                                 </tr>
                             </thead>
                             <tbody>
-                                {/* 9. Mapear desde 'checks' (del store) */}
+                                {/* 10. Mapear desde 'checks' (del store) */}
                                 {checks.map(check => (
                                     <tr key={check.id} className="border-b border-slate-100 hover:bg-slate-50">
                                         <td className="px-4 py-3 font-medium text-slate-700">{check.bank}</td>
@@ -88,7 +89,7 @@ const Checks: React.FC = () => {
                                         <td className="px-4 py-3 text-slate-600 font-medium">{check.dueDate}</td>
                                         <td className="px-4 py-3 font-semibold text-slate-800">${check.amount.toLocaleString('es-AR')}</td>
                                         <td className="px-4 py-3"><StatusBadge status={check.status} /></td>
-                                        {/* 10. Botón de acción (para actualizar estado) */}
+                                        {/* 11. Botón de acción (para actualizar estado) */}
                                         <td className="px-4 py-3 text-center">
                                             <button 
                                                 onClick={() => handleUpdateStatus(check)}
@@ -106,7 +107,7 @@ const Checks: React.FC = () => {
                 </div>
             </div>
 
-            {/* 11. Renderizar ambos modales */}
+            {/* 12. Renderizar ambos modales */}
             <AddCheckModal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} />
             <UpdateCheckStatusModal 
                 isOpen={isUpdateModalOpen} 
