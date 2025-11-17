@@ -1,11 +1,10 @@
-import React, { useMemo } from 'react'; // 1. Importar useMemo
+import React, { useMemo } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { TrendUpIcon, UserGroupIcon, AlertTriangleIcon, PlusIcon, CheckCircleIcon, DocumentTextIcon, CubeIcon } from './Icons';
-// 2. Ya no importamos 'salesData'
 import { ViewType } from '../App';
 import { useSelector } from 'react-redux';
 import { RootState } from '../store';
-import { Sale } from '../types'; // 3. Importar Sale
+import { Sale, Check } from '../types'; // 1. Importar el tipo 'Check'
 
 const StatCard: React.FC<{ title: string; value: string; change: string; isPositive: boolean; icon: React.ElementType }> = ({ title, value, change, isPositive, icon: Icon }) => (
     <div className="bg-white p-5 rounded-xl shadow-sm flex-1">
@@ -19,7 +18,6 @@ const StatCard: React.FC<{ title: string; value: string; change: string; isPosit
             </div>
         </div>
         <div className="flex items-center mt-2">
-            {/* 4. Mostrar cambio dinámicamente o texto estático si no hay cambio */}
             {change === "+0.0%" ? (
                 <p className="text-sm text-slate-500">{value === "$0.00" ? "Sin ventas hoy" : "Sin cambios vs ayer"}</p>
             ) : (
@@ -34,89 +32,82 @@ const StatCard: React.FC<{ title: string; value: string; change: string; isPosit
     </div>
 );
 
-// 5. Helper function para agrupar ventas por día (para el gráfico)
 const aggregateSalesByDay = (sales: Sale[]) => {
-    // const dayNames = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
     const weeklySales: { [key: number]: { name: string, Ventas: number } } = {
-        0: { name: "Dom", Ventas: 0 },
-        1: { name: "Lun", Ventas: 0 },
-        2: { name: "Mar", Ventas: 0 },
-        3: { name: "Mié", Ventas: 0 },
-        4: { name: "Jue", Ventas: 0 },
-        5: { name: "Vie", Ventas: 0 },
+        0: { name: "Dom", Ventas: 0 }, 1: { name: "Lun", Ventas: 0 }, 2: { name: "Mar", Ventas: 0 },
+        3: { name: "Mié", Ventas: 0 }, 4: { name: "Jue", Ventas: 0 }, 5: { name: "Vie", Ventas: 0 },
         6: { name: "Sáb", Ventas: 0 },
     };
-
     const today = new Date();
     const oneWeekAgo = new Date();
     oneWeekAgo.setDate(today.getDate() - 7);
 
     sales.forEach(sale => {
         const saleDate = new Date(sale.date);
-        // Filtramos ventas de la última semana
         if (saleDate >= oneWeekAgo) {
-            const dayOfWeek = saleDate.getDay(); // 0 = Domingo, 1 = Lunes...
+            const dayOfWeek = saleDate.getDay();
             weeklySales[dayOfWeek].Ventas += sale.total;
         }
     });
     
-    // Reordenar para que empiece en Lunes y termine en Domingo
-    const orderedSales = [
-        weeklySales[1],
-        weeklySales[2],
-        weeklySales[3],
-        weeklySales[4],
-        weeklySales[5],
-        weeklySales[6],
-        weeklySales[0],
-    ];
-
-    return orderedSales;
+    return [ weeklySales[1], weeklySales[2], weeklySales[3], weeklySales[4], weeklySales[5], weeklySales[6], weeklySales[0] ];
 };
 
-// 6. Helper para obtener la fecha de hoy en formato YYYY-MM-DD
 const getTodayString = () => {
     const today = new Date();
-    // Ajustar por la zona horaria local para asegurarse que la fecha es correcta
     today.setMinutes(today.getMinutes() - today.getTimezoneOffset());
     return today.toISOString().split('T')[0];
 };
 
+// 2. Helper para calcular días restantes y filtrar cheques
+const getUpcomingChecks = (checks: Check[], daysThreshold: number = 7) => {
+    const today = new Date().getTime();
+    const msInDay = 1000 * 60 * 60 * 24;
+
+    return checks
+        .filter(check => check.status === 'En cartera') // Solo cheques en cartera
+        .map(check => {
+            const dueDate = new Date(check.dueDate).getTime();
+            const daysRemaining = Math.round((dueDate - today) / msInDay);
+            return { ...check, daysRemaining };
+        })
+        .filter(check => check.daysRemaining >= 0 && check.daysRemaining <= daysThreshold) // Que venzan en los próximos X días
+        .sort((a, b) => a.daysRemaining - b.daysRemaining); // Ordenar por más próximo a vencer
+};
+
+
 const Dashboard: React.FC<{setActiveView: (view: ViewType) => void}> = ({ setActiveView }) => {
     const allProducts = useSelector((state: RootState) => state.products.products);
     const allCustomers = useSelector((state: RootState) => state.customers.customers);
-    // 7. Obtener ventas reales del store
     const allSales = useSelector((state: RootState) => state.sales.sales);
+    // 3. Obtener los cheques del store
+    const allChecks = useSelector((state: RootState) => state.checks.checks);
 
-    // 8. Calcular datos para el dashboard usando useMemo
-    const { salesToday, profitToday, salesChartData, lowStockProductCount } = useMemo(() => {
+    const { salesToday, profitToday, salesChartData, lowStockProductCount, upcomingChecks } = useMemo(() => {
         const todayStr = getTodayString();
         const salesTodayArr = allSales.filter(s => s.date.startsWith(todayStr));
-        
         const totalSales = salesTodayArr.reduce((acc, s) => acc + s.total, 0);
-        
         const totalCost = salesTodayArr.reduce((accSale, sale) => {
             return accSale + sale.items.reduce((accItem, item) => {
-                // El item en la venta (SaleItem) tiene el 'costPrice'
                 return accItem + (item.costPrice * item.quantity);
             }, 0);
         }, 0);
-
         const totalProfit = totalSales - totalCost;
-        
         const chartData = aggregateSalesByDay(allSales);
-        
         const lowStockCount = allProducts.filter(p => p.stock <= p.minStock).length;
+
+        // 4. Calcular los cheques por vencer
+        const upcomingChecksData = getUpcomingChecks(allChecks, 7); // Alerta con 7 días de antelación
 
         return {
             salesToday: totalSales,
             profitToday: totalProfit,
             salesChartData: chartData,
             lowStockProductCount: lowStockCount,
+            upcomingChecks: upcomingChecksData, // 5. Devolver los cheques calculados
         };
-    }, [allSales, allProducts]);
+    }, [allSales, allProducts, allChecks]); // 6. Añadir allChecks a las dependencias
 
-    // 9. El conteo de clientes ya es dinámico (correcto)
     const customerCount = allCustomers.length;
 
     return (
@@ -138,12 +129,11 @@ const Dashboard: React.FC<{setActiveView: (view: ViewType) => void}> = ({ setAct
                 </div>
             </div>
 
-            {/* 10. Conectar StatCards a los datos calculados */}
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
                 <StatCard 
                     title="Ventas del Día" 
                     value={`$${salesToday.toFixed(2)}`} 
-                    change="+0.0%" // Lógica de % de cambio no implementada (requiere datos de "ayer")
+                    change="+0.0%"
                     isPositive={true} 
                     icon={TrendUpIcon} 
                 />
@@ -165,7 +155,7 @@ const Dashboard: React.FC<{setActiveView: (view: ViewType) => void}> = ({ setAct
                     title="Poco Stock" 
                     value={lowStockProductCount.toString()} 
                     change="Productos críticos" 
-                    isPositive={lowStockProductCount === 0} // Es positivo si NO hay poco stock
+                    isPositive={lowStockProductCount === 0}
                     icon={AlertTriangleIcon} 
                 />
             </div>
@@ -175,7 +165,6 @@ const Dashboard: React.FC<{setActiveView: (view: ViewType) => void}> = ({ setAct
                     <h2 className="text-lg font-semibold text-slate-800 mb-4">Rendimiento de Ventas (Últ. 7 días)</h2>
                     <div className="h-72">
                         <ResponsiveContainer width="100%" height="100%">
-                            {/* 11. Usar 'salesChartData' */}
                             <BarChart data={salesChartData} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
                                 <CartesianGrid strokeDasharray="3 3" vertical={false} />
                                 <XAxis dataKey="name" tick={{ fill: '#64748b' }} axisLine={{ stroke: '#e2e8f0' }} tickLine={false} />
@@ -187,29 +176,34 @@ const Dashboard: React.FC<{setActiveView: (view: ViewType) => void}> = ({ setAct
                     </div>
                 </div>
 
+                {/* 7. Sección de Alertas y Notificaciones (Actualizada) */}
                 <div className="bg-white p-5 rounded-xl shadow-sm">
                     <h2 className="text-lg font-semibold text-slate-800 mb-4">Alertas y Notificaciones</h2>
                     <ul className="space-y-4">
-                        {/* Estas alertas siguen estáticas. Las conectaremos al 'checksSlice' a continuación */}
-                        <li className="flex items-start gap-3">
-                            <div className="mt-1 flex-shrink-0"><CheckCircleIcon className="w-5 h-5 text-yellow-500" /></div>
-                            <div>
-                                <p className="font-medium text-slate-700">Cheques a vencer (2)</p>
-                                <p className="text-sm text-slate-500">Cheque #4532 vence en 3 días.</p>
-                            </div>
-                        </li>
+                        {/* 8. Mapear sobre los cheques por vencer */}
+                        {upcomingChecks.length > 0 ? (
+                            upcomingChecks.map(check => (
+                                <li key={check.id} className="flex items-start gap-3">
+                                    <div className="mt-1 flex-shrink-0"><CheckCircleIcon className="w-5 h-5 text-yellow-500" /></div>
+                                    <div>
+                                        <p className="font-medium text-slate-700">Cheque a vencer: #{check.number}</p>
+                                        <p className="text-sm text-slate-500">
+                                            {check.issuer} - ${check.amount.toLocaleString('es-AR')}
+                                            {check.daysRemaining === 0 ? " (Vence hoy)" : ` (Vence en ${check.daysRemaining} días)`}
+                                        </p>
+                                    </div>
+                                </li>
+                            ))
+                        ) : (
+                            <li className="text-sm text-slate-500">No hay alertas por el momento.</li>
+                        )}
+                        
+                        {/* Alertas estáticas (puedes borrarlas o mantenerlas si son para otra lógica) */}
                         <li className="flex items-start gap-3">
                             <div className="mt-1 flex-shrink-0"><DocumentTextIcon className="w-5 h-5 text-red-500" /></div>
                             <div>
                                 <p className="font-medium text-slate-700">Facturas Pendientes (1)</p>
                                 <p className="text-sm text-slate-500">Factura #INV-098 de 'Aceros S.A' vencida.</p>
-                            </div>
-                        </li>
-                        <li className="flex items-start gap-3">
-                           <div className="mt-1 flex-shrink-0"> <CubeIcon className="w-5 h-5 text-blue-500" /></div>
-                            <div>
-                                <p className="font-medium text-slate-700">Pedido Recibido</p>
-                                <p className="text-sm text-slate-500">Pedido #PO-1123 ha llegado.</p>
                             </div>
                         </li>
                     </ul>
@@ -231,7 +225,6 @@ const Dashboard: React.FC<{setActiveView: (view: ViewType) => void}> = ({ setAct
                             </tr>
                         </thead>
                         <tbody>
-                            {/* 12. Usar los productos con bajo stock (mostrando los 5 primeros) */}
                             {allProducts.filter(p => p.stock <= p.minStock).slice(0, 5).map(product => (
                                 <tr key={product.id} className="border-b border-slate-100">
                                     <td className="px-4 py-3 font-medium text-slate-700">{product.name}</td>
