@@ -13,7 +13,6 @@ const initialState: SuppliersState = {
 export const suppliersSlice = createSlice({
   name: 'suppliers',
   initialState,
-  // Acciones para modificar el estado (las dejaremos listas)
   reducers: {
     addSupplier: (state, action: PayloadAction<Supplier>) => {
       state.suppliers.push(action.payload);
@@ -27,9 +26,22 @@ export const suppliersSlice = createSlice({
     deleteSupplier: (state, action: PayloadAction<string>) => {
       state.suppliers = state.suppliers.filter(s => s.id !== action.payload);
     },
+    // --- INICIO DE NUEVO CÓDIGO ---
+    updateSupplierBalance: (state, action: PayloadAction<{ supplierId: string; dueAmount: number }>) => {
+      // Esta acción incrementa la deuda que tenemos con un proveedor
+      const { supplierId, dueAmount } = action.payload;
+      const supplier = state.suppliers.find(s => s.id === supplierId);
+      
+      if (supplier) {
+        // Sumamos lo que le debemos a su saldo actual
+        supplier.balance += dueAmount;
+      }
+    },
+    // --- FIN DE NUEVO CÓDIGO ---
   },
 });
 
-export const { addSupplier, updateSupplier, deleteSupplier } = suppliersSlice.actions;
+// 4. Exportar la nueva acción
+export const { addSupplier, updateSupplier, deleteSupplier, updateSupplierBalance } = suppliersSlice.actions;
 
 export default suppliersSlice.reducer;
