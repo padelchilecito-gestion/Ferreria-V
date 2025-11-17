@@ -12,6 +12,7 @@ import { updateCustomerBalance } from '../store/customersSlice';
 const PointOfSale: React.FC = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedCustomer, setSelectedCustomer] = useState<string>('final');
+    // 1. priceType ahora controla qué precio se usa
     const [priceType, setPriceType] = useState<'retail' | 'wholesale'>('retail');
     const [paymentMethod, setPaymentMethod] = useState<'efectivo' | 'debito' | 'cheque' | 'cuenta corriente'>('efectivo');
     const [paidAmount, setPaidAmount] = useState(0);
@@ -21,8 +22,6 @@ const PointOfSale: React.FC = () => {
     const cart = useSelector((state: RootState) => state.cart.items);
     const allProducts = useSelector((state: RootState) => state.products.products);
     const allCustomers = useSelector((state: RootState) => state.customers.customers);
-    
-    // 1. Leer la tasa de IVA desde el store
     const taxRate = useSelector((state: RootState) => state.settings.taxRate);
 
     const uniqueCategories = useMemo(() => {
@@ -52,11 +51,18 @@ const PointOfSale: React.FC = () => {
     };
     // --- Fin Funciones del carrito ---
 
-    const subtotal = cart.reduce((acc, item) => acc + (item.retailPrice * item.quantity), 0);
+    // 2. Función helper para obtener el precio correcto
+    const getPrice = (item: Product) => {
+        return priceType === 'wholesale' ? item.wholesalePrice : item.retailPrice;
+    };
+
+    // 3. Subtotal usa getPrice
+    const subtotal = cart.reduce((acc, item) => {
+        const price = getPrice(item);
+        return acc + (price * item.quantity);
+    }, 0);
     
-    // 2. Calcular el IVA usando la tasa del store
     const tax = subtotal * taxRate;
-    
     const total = subtotal + tax;
     
     const getPaidAmount = () => {
@@ -82,7 +88,7 @@ const PointOfSale: React.FC = () => {
             date: new Date().toISOString(),
             customerId: selectedCustomer,
             customerName: customerName,
-            items: cart,
+            items: cart, // El carrito ya tiene los productos (con ambos precios)
             subtotal: subtotal,
             tax: tax,
             total: total,
@@ -106,7 +112,7 @@ const PointOfSale: React.FC = () => {
 
     return (
         <div className="grid grid-cols-1 lg:grid-cols-10 gap-6 h-[calc(100vh-8rem)]">
-            {/* --- Columna Izquierda: Catálogo (sin cambios) --- */}
+            {/* Columna Izquierda: Catálogo (Actualizado) */}
             <div className="lg:col-span-3 bg-white rounded-xl shadow-sm flex flex-col">
                 <div className="p-4 border-b">
                     <h2 className="text-lg font-bold text-slate-800">Búsqueda y Catálogo</h2>
@@ -141,19 +147,20 @@ const PointOfSale: React.FC = () => {
                     </div>
                 </div>
                 <div className="flex-1 overflow-y-auto p-4 space-y-2">
+                    {/* 4. Mostrar el precio correcto en la lista de productos */}
                     {filteredProducts.map(product => (
                         <div key={product.id} onClick={() => dispatchAddToCart(product)} className="p-3 border rounded-lg flex justify-between items-center hover:bg-blue-50 cursor-pointer transition">
                             <div>
                                 <p className="font-semibold text-slate-700">{product.name}</p>
                                 <p className="text-sm text-slate-500">Stock: {product.stock}</p>
                             </div>
-                            <p className="text-lg font-bold text-slate-800">${product.retailPrice.toFixed(2)}</p>
+                            <p className="text-lg font-bold text-slate-800">${getPrice(product).toFixed(2)}</p>
                         </div>
                     ))}
                 </div>
             </div>
 
-            {/* --- Columna Central: Carrito (Actualizada) --- */}
+            {/* Columna Central: Carrito (Actualizado) */}
             <div className="lg:col-span-4 bg-white rounded-xl shadow-sm flex flex-col">
                 <div className="p-4 border-b">
                     <h2 className="text-lg font-bold text-slate-800">Carrito de Compra</h2>
@@ -173,22 +180,27 @@ const PointOfSale: React.FC = () => {
                         <div className="text-center text-slate-500 pt-10">El carrito está vacío</div>
                     ) : (
                         <div className="space-y-3">
-                            {cart.map(item => (
-                                <div key={item.id} className="flex items-center gap-4">
-                                    <div className="flex-1">
-                                        <p className="font-medium text-slate-800">{item.name}</p>
-                                        <p className="text-sm text-slate-500">${item.retailPrice.toFixed(2)} / unidad</p>
+                            {/* 5. Mostrar el precio correcto en el carrito */}
+                            {cart.map(item => {
+                                const price = getPrice(item);
+                                return (
+                                    <div key={item.id} className="flex items-center gap-4">
+                                        <div className="flex-1">
+                                            <p className="font-medium text-slate-800">{item.name}</p>
+                                            <p className="text-sm text-slate-500">${price.toFixed(2)} / unidad</p>
+                                        </div>
+                                        <input type="number" value={item.quantity} onChange={(e) => dispatchUpdateQuantity(item.id, parseInt(e.target.value, 10))} className="w-16 text-center border border-slate-300 rounded-md p-1"/>
+                                        <p className="w-20 text-right font-semibold">${(price * item.quantity).toFixed(2)}</p>
+                                        <button onClick={() => dispatchRemoveFromCart(item.id)} className="text-red-500 hover:text-red-700">
+                                            <TrashIcon className="w-5 h-5" />
+                                        </button>
                                     </div>
-                                    <input type="number" value={item.quantity} onChange={(e) => dispatchUpdateQuantity(item.id, parseInt(e.target.value, 10))} className="w-16 text-center border border-slate-300 rounded-md p-1"/>
-                                    <p className="w-20 text-right font-semibold">${(item.retailPrice * item.quantity).toFixed(2)}</p>
-                                    <button onClick={() => dispatchRemoveFromCart(item.id)} className="text-red-500 hover:text-red-700">
-                                        <TrashIcon className="w-5 h-5" />
-                                    </button>
-                                </div>
-                            ))}
+                                );
+                            })}
                         </div>
                     )}
                 </div>
+                {/* 6. Cálculo de Subtotal y Total (ya está actualizado) */}
                 <div className="p-4 border-t bg-slate-50 rounded-b-xl">
                     <div className="space-y-2 text-sm">
                         <div className="flex justify-between">
@@ -200,7 +212,6 @@ const PointOfSale: React.FC = () => {
                             <span className="font-medium text-slate-800">$0.00</span>
                         </div>
                          <div className="flex justify-between">
-                            {/* 3. Mostrar la tasa de IVA dinámica */}
                             <span className="text-slate-600">IVA ({(taxRate * 100).toFixed(0)}%)</span>
                             <span className="font-medium text-slate-800">${tax.toFixed(2)}</span>
                         </div>
@@ -212,7 +223,7 @@ const PointOfSale: React.FC = () => {
                 </div>
             </div>
 
-            {/* --- Columna Derecha: Pago (sin cambios) --- */}
+            {/* Columna Derecha: Pago (sin cambios) */}
             <div className="lg:col-span-3 bg-white rounded-xl shadow-sm flex flex-col">
                 <div className="p-4 border-b">
                     <h2 className="text-lg font-bold text-slate-800">Finalización y Métodos de Pago</h2>
