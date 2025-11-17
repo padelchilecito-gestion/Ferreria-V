@@ -1,5 +1,5 @@
 // components/Checks.tsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react'; // 1. Importar useEffect
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState, AppDispatch } from '../store';
 import { Check } from '../types';
@@ -7,7 +7,7 @@ import { PlusIcon, PencilIcon } from './Icons';
 import AddCheckModal from './AddCheckModal';
 import UpdateCheckStatusModal from './UpdateCheckStatusModal';
 
-// 1. Definir items por página
+// 2. Definir items por página
 const ITEMS_PER_PAGE = 10;
 
 const StatusBadge: React.FC<{ status: Check['status'] }> = ({ status }) => {
@@ -29,7 +29,7 @@ const Checks: React.FC = () => {
     const [startDateFilter, setStartDateFilter] = useState('');
     const [endDateFilter, setEndDateFilter] = useState('');
 
-    // 2. Estado para paginación
+    // 3. Estado para paginación
     const [currentPage, setCurrentPage] = useState(1);
 
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -50,7 +50,7 @@ const Checks: React.FC = () => {
         return matchesSearch && matchesStatus && matchesStartDate && matchesEndDate;
     });
 
-    // 3. Lógica de paginación
+    // 4. Lógica de paginación
     const totalPages = Math.ceil(filteredChecks.length / ITEMS_PER_PAGE);
     const paginatedChecks = filteredChecks.slice(
         (currentPage - 1) * ITEMS_PER_PAGE,
@@ -63,8 +63,8 @@ const Checks: React.FC = () => {
         }
     };
 
-    // Resetear página a 1 cuando cambian los filtros
-    React.useEffect(() => {
+    // 5. Resetear página a 1 cuando cambian los filtros
+    useEffect(() => {
         setCurrentPage(1);
     }, [searchTerm, statusFilter, startDateFilter, endDateFilter]);
 
@@ -136,7 +136,7 @@ const Checks: React.FC = () => {
                                 </tr>
                             </thead>
                             <tbody>
-                                {/* 4. Mapear sobre paginatedChecks */}
+                                {/* 6. Mapear sobre paginatedChecks */}
                                 {paginatedChecks.map(check => (
                                     <tr key={check.id} className="border-b border-slate-100 hover:bg-slate-50">
                                         <td className="px-4 py-3 font-medium text-slate-700">{check.bank}</td>
@@ -161,10 +161,10 @@ const Checks: React.FC = () => {
                         </table>
                     </div>
 
-                    {/* 5. Controles de Paginación */}
+                    {/* 7. Controles de Paginación */}
                     <div className="flex justify-between items-center mt-4 text-sm">
                         <span className="text-slate-600">
-                            Mostrando {Math.min((currentPage - 1) * ITEMS_PER_PAGE + 1, filteredChecks.length)} - {Math.min(currentPage * ITEMS_PER_PAGE, filteredChecks.length)} de {filteredChecks.length} cheques
+                            Mostrando {Math.min((currentPage - 1) * ITEMS_PER_PAGE + 1, filteredChecks.length) || 0} - {Math.min(currentPage * ITEMS_PER_PAGE, filteredChecks.length)} de {filteredChecks.length} cheques
                         </span>
                         <div className="flex gap-2">
                             <button
