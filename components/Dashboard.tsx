@@ -1,12 +1,11 @@
-import React from 'react';
+import React, { useMemo } from 'react'; // 1. Importar useMemo
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { TrendUpIcon, UserGroupIcon, AlertTriangleIcon, PlusIcon, CheckCircleIcon, DocumentTextIcon, CubeIcon } from './Icons';
-// 1. Ya no importamos 'mockProducts', solo 'salesData'
-import { salesData } from '../data/mockData';
+// 2. Ya no importamos 'salesData'
 import { ViewType } from '../App';
-// 2. Importamos useSelector y RootState
 import { useSelector } from 'react-redux';
 import { RootState } from '../store';
+import { Sale } from '../types'; // 3. Importar Sale
 
 const StatCard: React.FC<{ title: string; value: string; change: string; isPositive: boolean; icon: React.ElementType }> = ({ title, value, change, isPositive, icon: Icon }) => (
     <div className="bg-white p-5 rounded-xl shadow-sm flex-1">
@@ -20,21 +19,105 @@ const StatCard: React.FC<{ title: string; value: string; change: string; isPosit
             </div>
         </div>
         <div className="flex items-center mt-2">
-            <TrendUpIcon className={`w-4 h-4 mr-1 ${isPositive ? 'text-green-500' : 'text-red-500'}`} />
-            <p className={`text-sm ${isPositive ? 'text-green-500' : 'text-red-500'}`}>
-                {change} <span className="text-slate-500">vs ayer</span>
-            </p>
+            {/* 4. Mostrar cambio dinámicamente o texto estático si no hay cambio */}
+            {change === "+0.0%" ? (
+                <p className="text-sm text-slate-500">{value === "$0.00" ? "Sin ventas hoy" : "Sin cambios vs ayer"}</p>
+            ) : (
+                <>
+                    <TrendUpIcon className={`w-4 h-4 mr-1 ${isPositive ? 'text-green-500' : 'text-red-500'}`} />
+                    <p className={`text-sm ${isPositive ? 'text-green-500' : 'text-red-500'}`}>
+                        {change} <span className="text-slate-500">vs ayer</span>
+                    </p>
+                </>
+            )}
         </div>
     </div>
 );
 
+// 5. Helper function para agrupar ventas por día (para el gráfico)
+const aggregateSalesByDay = (sales: Sale[]) => {
+    // const dayNames = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
+    const weeklySales: { [key: number]: { name: string, Ventas: number } } = {
+        0: { name: "Dom", Ventas: 0 },
+        1: { name: "Lun", Ventas: 0 },
+        2: { name: "Mar", Ventas: 0 },
+        3: { name: "Mié", Ventas: 0 },
+        4: { name: "Jue", Ventas: 0 },
+        5: { name: "Vie", Ventas: 0 },
+        6: { name: "Sáb", Ventas: 0 },
+    };
+
+    const today = new Date();
+    const oneWeekAgo = new Date();
+    oneWeekAgo.setDate(today.getDate() - 7);
+
+    sales.forEach(sale => {
+        const saleDate = new Date(sale.date);
+        // Filtramos ventas de la última semana
+        if (saleDate >= oneWeekAgo) {
+            const dayOfWeek = saleDate.getDay(); // 0 = Domingo, 1 = Lunes...
+            weeklySales[dayOfWeek].Ventas += sale.total;
+        }
+    });
+    
+    // Reordenar para que empiece en Lunes y termine en Domingo
+    const orderedSales = [
+        weeklySales[1],
+        weeklySales[2],
+        weeklySales[3],
+        weeklySales[4],
+        weeklySales[5],
+        weeklySales[6],
+        weeklySales[0],
+    ];
+
+    return orderedSales;
+};
+
+// 6. Helper para obtener la fecha de hoy en formato YYYY-MM-DD
+const getTodayString = () => {
+    const today = new Date();
+    // Ajustar por la zona horaria local para asegurarse que la fecha es correcta
+    today.setMinutes(today.getMinutes() - today.getTimezoneOffset());
+    return today.toISOString().split('T')[0];
+};
+
 const Dashboard: React.FC<{setActiveView: (view: ViewType) => void}> = ({ setActiveView }) => {
-    // 3. Leemos los productos y clientes desde el store global
     const allProducts = useSelector((state: RootState) => state.products.products);
     const allCustomers = useSelector((state: RootState) => state.customers.customers);
+    // 7. Obtener ventas reales del store
+    const allSales = useSelector((state: RootState) => state.sales.sales);
 
-    // 4. Calculamos los productos con bajo stock usando los datos del store
-    const lowStockProducts = allProducts.filter(p => p.stock <= p.minStock).slice(0, 3);
+    // 8. Calcular datos para el dashboard usando useMemo
+    const { salesToday, profitToday, salesChartData, lowStockProductCount } = useMemo(() => {
+        const todayStr = getTodayString();
+        const salesTodayArr = allSales.filter(s => s.date.startsWith(todayStr));
+        
+        const totalSales = salesTodayArr.reduce((acc, s) => acc + s.total, 0);
+        
+        const totalCost = salesTodayArr.reduce((accSale, sale) => {
+            return accSale + sale.items.reduce((accItem, item) => {
+                // El item en la venta (SaleItem) tiene el 'costPrice'
+                return accItem + (item.costPrice * item.quantity);
+            }, 0);
+        }, 0);
+
+        const totalProfit = totalSales - totalCost;
+        
+        const chartData = aggregateSalesByDay(allSales);
+        
+        const lowStockCount = allProducts.filter(p => p.stock <= p.minStock).length;
+
+        return {
+            salesToday: totalSales,
+            profitToday: totalProfit,
+            salesChartData: chartData,
+            lowStockProductCount: lowStockCount,
+        };
+    }, [allSales, allProducts]);
+
+    // 9. El conteo de clientes ya es dinámico (correcto)
+    const customerCount = allCustomers.length;
 
     return (
         <div className="space-y-6">
@@ -55,21 +138,45 @@ const Dashboard: React.FC<{setActiveView: (view: ViewType) => void}> = ({ setAct
                 </div>
             </div>
 
+            {/* 10. Conectar StatCards a los datos calculados */}
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
-                {/* 5. Los datos de ventas siguen siendo estáticos por ahora */}
-                <StatCard title="Ventas del Día" value="$1,250.75" change="+5.2%" isPositive={true} icon={TrendUpIcon} />
-                <StatCard title="Ganancia Estimada" value="$480.50" change="+3.1%" isPositive={true} icon={TrendUpIcon} />
-                {/* 6. Estos datos ahora son dinámicos desde el store */}
-                <StatCard title="Nuevos Clientes" value={allCustomers.length.toString()} change="Hoy" isPositive={true} icon={UserGroupIcon} />
-                <StatCard title="Poco Stock" value={lowStockProducts.length.toString()} change="Productos críticos" isPositive={false} icon={AlertTriangleIcon} />
+                <StatCard 
+                    title="Ventas del Día" 
+                    value={`$${salesToday.toFixed(2)}`} 
+                    change="+0.0%" // Lógica de % de cambio no implementada (requiere datos de "ayer")
+                    isPositive={true} 
+                    icon={TrendUpIcon} 
+                />
+                <StatCard 
+                    title="Ganancia Estimada" 
+                    value={`$${profitToday.toFixed(2)}`} 
+                    change="+0.0%" 
+                    isPositive={true} 
+                    icon={TrendUpIcon} 
+                />
+                <StatCard 
+                    title="Total Clientes" 
+                    value={customerCount.toString()} 
+                    change="Desde el inicio" 
+                    isPositive={true} 
+                    icon={UserGroupIcon} 
+                />
+                <StatCard 
+                    title="Poco Stock" 
+                    value={lowStockProductCount.toString()} 
+                    change="Productos críticos" 
+                    isPositive={lowStockProductCount === 0} // Es positivo si NO hay poco stock
+                    icon={AlertTriangleIcon} 
+                />
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div className="lg:col-span-2 bg-white p-5 rounded-xl shadow-sm">
-                    <h2 className="text-lg font-semibold text-slate-800 mb-4">Rendimiento de Ventas Semanales</h2>
+                    <h2 className="text-lg font-semibold text-slate-800 mb-4">Rendimiento de Ventas (Últ. 7 días)</h2>
                     <div className="h-72">
                         <ResponsiveContainer width="100%" height="100%">
-                            <BarChart data={salesData} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
+                            {/* 11. Usar 'salesChartData' */}
+                            <BarChart data={salesChartData} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
                                 <CartesianGrid strokeDasharray="3 3" vertical={false} />
                                 <XAxis dataKey="name" tick={{ fill: '#64748b' }} axisLine={{ stroke: '#e2e8f0' }} tickLine={false} />
                                 <YAxis tick={{ fill: '#64748b' }} axisLine={{ stroke: '#e2e8f0' }} tickLine={false} tickFormatter={(value) => `$${value/1000}k`} />
@@ -83,7 +190,7 @@ const Dashboard: React.FC<{setActiveView: (view: ViewType) => void}> = ({ setAct
                 <div className="bg-white p-5 rounded-xl shadow-sm">
                     <h2 className="text-lg font-semibold text-slate-800 mb-4">Alertas y Notificaciones</h2>
                     <ul className="space-y-4">
-                        {/* 7. Estas alertas aún son estáticas. Podríamos conectarlas al 'checksSlice' luego */}
+                        {/* Estas alertas siguen estáticas. Las conectaremos al 'checksSlice' a continuación */}
                         <li className="flex items-start gap-3">
                             <div className="mt-1 flex-shrink-0"><CheckCircleIcon className="w-5 h-5 text-yellow-500" /></div>
                             <div>
@@ -124,13 +231,15 @@ const Dashboard: React.FC<{setActiveView: (view: ViewType) => void}> = ({ setAct
                             </tr>
                         </thead>
                         <tbody>
-                            {/* 8. Esta tabla ahora se actualiza sola si el stock cambia */}
-                            {lowStockProducts.map(product => (
+                            {/* 12. Usar los productos con bajo stock (mostrando los 5 primeros) */}
+                            {allProducts.filter(p => p.stock <= p.minStock).slice(0, 5).map(product => (
                                 <tr key={product.id} className="border-b border-slate-100">
                                     <td className="px-4 py-3 font-medium text-slate-700">{product.name}</td>
                                     <td className="px-4 py-3 text-slate-600">{product.sku}</td>
                                     <td className="px-4 py-3">
-                                        <span className="bg-red-100 text-red-700 text-xs font-semibold px-2 py-1 rounded-full">{product.stock}</span>
+                                        <span className={`text-xs font-semibold px-2 py-1 rounded-full ${product.stock === 0 ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                                            {product.stock}
+                                        </span>
                                     </td>
                                     <td className="px-4 py-3 text-slate-600">{product.minStock}</td>
                                     <td className="px-4 py-3 text-right">
