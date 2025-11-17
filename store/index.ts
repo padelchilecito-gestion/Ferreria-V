@@ -17,7 +17,8 @@ import cartReducer from './cartSlice';
 import customersReducer from './customersSlice';
 import suppliersReducer from './suppliersSlice';
 import checksReducer from './checksSlice';
-import salesReducer from './salesSlice'; // 1. Importar el nuevo reducer
+import salesReducer from './salesSlice';
+import settingsReducer from './settingsSlice'; // 1. Importar el nuevo reducer
 
 // 2. Combinamos todos los reducers
 const rootReducer = combineReducers({
@@ -26,14 +27,15 @@ const rootReducer = combineReducers({
   customers: customersReducer,
   suppliers: suppliersReducer,
   checks: checksReducer,
-  sales: salesReducer, // 3. Añadir el reducer de ventas
+  sales: salesReducer,
+  settings: settingsReducer, // 3. Añadir el reducer de configuración
 });
 
 const persistConfig = {
   key: 'root', 
   storage, 
-  // 4. Añadir 'sales' a la whitelist para que se guarde en localStorage
-  whitelist: ['products', 'customers', 'suppliers', 'checks', 'sales'],
+  // 4. Añadir 'settings' a la whitelist
+  whitelist: ['products', 'customers', 'suppliers', 'checks', 'sales', 'settings'],
   // 'cart' sigue fuera para que se limpie al recargar
 };
 
