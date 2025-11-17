@@ -1,5 +1,5 @@
 // components/AddPurchaseModal.tsx
-import React, { useState } in 'react';
+import React, { useState } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { nanoid } from 'nanoid';
 import { AppDispatch, RootState } from '../store';
@@ -29,7 +29,6 @@ const AddPurchaseModal: React.FC<AddPurchaseModalProps> = ({ isOpen, onClose }) 
   const [currentQuantity, setCurrentQuantity] = useState(1);
   const [currentCost, setCurrentCost] = useState(0);
 
-  // Limpiar el modal al cerrar
   const handleClose = () => {
     setSupplierId('');
     setInvoiceNumber('');
@@ -40,7 +39,6 @@ const AddPurchaseModal: React.FC<AddPurchaseModalProps> = ({ isOpen, onClose }) 
     onClose();
   };
 
-  // Añadir un producto a la lista de items de la compra
   const handleAddItem = () => {
     const product = allProducts.find(p => p.id === currentProductId);
     if (!product) {
@@ -48,7 +46,6 @@ const AddPurchaseModal: React.FC<AddPurchaseModalProps> = ({ isOpen, onClose }) 
       return;
     }
     
-    // Prevenir items duplicados (opcional, mejor editar cantidad)
     const existingItem = items.find(i => i.productId === product.id);
     if(existingItem) {
       alert('Ese producto ya está en la lista. Edite la cantidad si es necesario.');
@@ -59,23 +56,20 @@ const AddPurchaseModal: React.FC<AddPurchaseModalProps> = ({ isOpen, onClose }) 
       productId: product.id,
       name: product.name,
       quantity: Number(currentQuantity) || 1,
-      costPrice: Number(currentCost) || product.costPrice, // Usar costo nuevo o el guardado
+      costPrice: Number(currentCost) || product.costPrice, 
     };
     
     setItems([...items, newItem]);
     
-    // Resetear formulario de item
     setCurrentProductId('');
     setCurrentQuantity(1);
     setCurrentCost(0);
   };
 
-  // Quitar un producto de la lista
   const handleRemoveItem = (productId: string) => {
     setItems(items.filter(i => i.productId !== productId));
   };
 
-  // Calcular el total de la compra
   const totalPurchase = items.reduce((acc, item) => acc + (item.costPrice * item.quantity), 0);
 
   // Guardar la compra
@@ -92,7 +86,7 @@ const AddPurchaseModal: React.FC<AddPurchaseModalProps> = ({ isOpen, onClose }) 
     }
 
     const supplier = allSuppliers.find(s => s.id === supplierId);
-    if (!supplier) return; // No debería pasar
+    if (!supplier) return; 
 
     // 1. Crear el objeto de Compra
     const newPurchase: Purchase = {
@@ -103,24 +97,27 @@ const AddPurchaseModal: React.FC<AddPurchaseModalProps> = ({ isOpen, onClose }) 
         invoiceNumber: invoiceNumber || 'S/N',
         items: items,
         total: totalPurchase,
-        status: 'Pendiente de pago', // Por defecto, la compra queda pendiente de pago
+        status: 'Pendiente de pago',
     };
 
     // 2. Despachar la acción para guardar la compra
     dispatch(addPurchase(newPurchase));
 
-    // 3. Despachar la acción para incrementar el stock de CADA producto
+    // --- INICIO DE MODIFICACIÓN ---
+    // 3. Despachar la acción para incrementar el stock (y AHORA TAMBIÉN EL COSTO)
     items.forEach(item => {
         dispatch(increaseStock({
             productId: item.productId,
-            quantity: item.quantity
+            quantity: item.quantity,
+            newCostPrice: item.costPrice // <-- ¡AQUÍ ESTÁ EL CAMBIO!
         }));
     });
+    // --- FIN DE MODIFICACIÓN ---
 
     // 4. Despachar la acción para actualizar el saldo (deuda) con el proveedor
     dispatch(updateSupplierBalance({
         supplierId: supplier.id,
-        dueAmount: totalPurchase // Sumamos el total de la factura a nuestra deuda
+        dueAmount: totalPurchase 
     }));
     
     // 5. Limpiar y cerrar
@@ -192,7 +189,6 @@ const AddPurchaseModal: React.FC<AddPurchaseModalProps> = ({ isOpen, onClose }) 
                             value={currentProductId}
                             onChange={e => {
                                 setCurrentProductId(e.target.value);
-                                // Auto-rellenar costo al seleccionar
                                 const prod = allProducts.find(p => p.id === e.target.value);
                                 if (prod) setCurrentCost(prod.costPrice);
                             }}
