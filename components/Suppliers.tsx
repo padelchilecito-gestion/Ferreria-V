@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react'; // 1. Importar useEffect
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState, AppDispatch } from '../store';
 import { Supplier } from '../types';
@@ -7,7 +7,7 @@ import { deleteSupplier } from '../store/suppliersSlice';
 import AddSupplierModal from './AddSupplierModal';
 import EditSupplierModal from './EditSupplierModal';
 
-// 1. Definir items por página
+// 2. Definir items por página
 const ITEMS_PER_PAGE = 10;
 
 const StatusBadge: React.FC<{ status: Supplier['status'] }> = ({ status }) => {
@@ -26,7 +26,7 @@ const Suppliers: React.FC = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState('all');
 
-    // 2. Estado para paginación
+    // 3. Estado para paginación
     const [currentPage, setCurrentPage] = useState(1);
 
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -51,7 +51,7 @@ const Suppliers: React.FC = () => {
         return matchesSearch && matchesStatus;
     });
 
-    // 3. Lógica de paginación
+    // 4. Lógica de paginación
     const totalPages = Math.ceil(filteredSuppliers.length / ITEMS_PER_PAGE);
     const paginatedSuppliers = filteredSuppliers.slice(
         (currentPage - 1) * ITEMS_PER_PAGE,
@@ -64,8 +64,8 @@ const Suppliers: React.FC = () => {
         }
     };
 
-    // Resetear página a 1 cuando cambian los filtros
-    React.useEffect(() => {
+    // 5. Resetear página a 1 cuando cambian los filtros
+    useEffect(() => {
         setCurrentPage(1);
     }, [searchTerm, statusFilter]);
 
@@ -123,7 +123,7 @@ const Suppliers: React.FC = () => {
                                 </tr>
                             </thead>
                             <tbody>
-                                {/* 4. Mapear sobre paginatedSuppliers */}
+                                {/* 6. Mapear sobre paginatedSuppliers */}
                                 {paginatedSuppliers.map(supplier => (
                                     <tr key={supplier.id} className="border-b border-slate-100 hover:bg-slate-50">
                                         <td className="px-4 py-3 font-medium text-slate-700">{supplier.name}</td>
@@ -151,10 +151,10 @@ const Suppliers: React.FC = () => {
                         </table>
                     </div>
                     
-                    {/* 5. Controles de Paginación */}
+                    {/* 7. Controles de Paginación */}
                     <div className="flex justify-between items-center mt-4 text-sm">
                         <span className="text-slate-600">
-                            Mostrando {Math.min((currentPage - 1) * ITEMS_PER_PAGE + 1, filteredSuppliers.length)} - {Math.min(currentPage * ITEMS_PER_PAGE, filteredSuppliers.length)} de {filteredSuppliers.length} proveedores
+                            Mostrando {Math.min((currentPage - 1) * ITEMS_PER_PAGE + 1, filteredSuppliers.length) || 0} - {Math.min(currentPage * ITEMS_PER_PAGE, filteredSuppliers.length)} de {filteredSuppliers.length} proveedores
                         </span>
                         <div className="flex gap-2">
                             <button
