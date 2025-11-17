@@ -1,14 +1,13 @@
-import React, { useState } from 'react';
-import { useSelector, useDispatch } from 'react-redux'; // 1. Importar hooks
+import React, { useState } from 'react'; // 1. Importar useState
+import { useSelector, useDispatch } from 'react-redux';
 import { RootState, AppDispatch } from '../store';
 import { Supplier } from '../types';
-import { PlusIcon, SearchIcon, TrashIcon } from './Icons'; // 2. Importar TrashIcon
-import { deleteSupplier } from '../store/suppliersSlice'; // 3. Importar acción
-import AddSupplierModal from './AddSupplierModal'; // 4. Importar modales
+import { PlusIcon, SearchIcon, TrashIcon } from './Icons';
+import { deleteSupplier } from '../store/suppliersSlice';
+import AddSupplierModal from './AddSupplierModal';
 import EditSupplierModal from './EditSupplierModal';
 
 const StatusBadge: React.FC<{ status: Supplier['status'] }> = ({ status }) => {
-    // ... (sin cambios) ...
     const styles = {
         Active: 'bg-green-100 text-green-800',
         Inactive: 'bg-red-100 text-red-800',
@@ -18,16 +17,16 @@ const StatusBadge: React.FC<{ status: Supplier['status'] }> = ({ status }) => {
 };
 
 const Suppliers: React.FC = () => {
-    // 5. Leer datos desde Redux
     const suppliers = useSelector((state: RootState) => state.suppliers.suppliers);
     const dispatch = useDispatch<AppDispatch>();
 
-    // 6. Estado local para manejar los modales y el proveedor seleccionado
+    // 2. Estado para la búsqueda
+    const [searchTerm, setSearchTerm] = useState('');
+
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [currentSupplier, setCurrentSupplier] = useState<Supplier | null>(null);
 
-    // 7. Funciones para manejar los eventos
     const handleEdit = (supplier: Supplier) => {
         setCurrentSupplier(supplier);
         setIsEditModalOpen(true);
@@ -39,15 +38,20 @@ const Suppliers: React.FC = () => {
         }
     };
 
+    // 3. Filtramos los proveedores
+    const filteredSuppliers = suppliers.filter(s => 
+        s.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+        s.cuit.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
     return (
-        <> {/* 8. Envolvemos en un Fragment */}
+        <> 
             <div className="space-y-6">
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                     <div>
                         <h1 className="text-2xl font-bold text-slate-800 hidden lg:block">Gestión de Proveedores</h1>
                         <p className="text-slate-500 mt-1">Administre la información y el estado de sus proveedores.</p>
                     </div>
-                    {/* 9. Conectar botón de "Agregar" */}
                     <button 
                         onClick={() => setIsAddModalOpen(true)}
                         className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
@@ -60,7 +64,14 @@ const Suppliers: React.FC = () => {
                 <div className="bg-white p-4 rounded-xl shadow-sm">
                     <div className="relative mb-4">
                         <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-                        <input type="text" placeholder="Buscar por Nombre, CUIT/DNI..." className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg" />
+                        {/* 4. Conectamos el input al estado */}
+                        <input 
+                            type="text" 
+                            placeholder="Buscar por Nombre, CUIT/DNI..." 
+                            className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg"
+                            value={searchTerm}
+                            onChange={e => setSearchTerm(e.target.value)}
+                        />
                     </div>
                     <div className="overflow-x-auto">
                         <table className="w-full text-left">
@@ -75,8 +86,8 @@ const Suppliers: React.FC = () => {
                                 </tr>
                             </thead>
                             <tbody>
-                                {/* 10. Mapear desde 'suppliers' del store y agregar botones */}
-                                {suppliers.map(supplier => (
+                                {/* 5. Mapeamos sobre filteredSuppliers */}
+                                {filteredSuppliers.map(supplier => (
                                     <tr key={supplier.id} className="border-b border-slate-100 hover:bg-slate-50">
                                         <td className="px-4 py-3 font-medium text-slate-700">{supplier.name}</td>
                                         <td className="px-4 py-3 text-slate-600">{supplier.cuit}</td>
@@ -114,7 +125,6 @@ const Suppliers: React.FC = () => {
                 </div>
             </div>
             
-            {/* 11. Renderizar ambos modales */}
             <AddSupplierModal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} />
             <EditSupplierModal 
                 isOpen={isEditModalOpen} 
