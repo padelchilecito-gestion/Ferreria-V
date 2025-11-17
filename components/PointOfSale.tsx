@@ -1,3 +1,4 @@
+// components/PointOfSale.tsx
 import React, { useState, useMemo } from 'react';
 import { Product, CartItem, Customer, Sale } from '../types';
 import { SearchIcon, TrashIcon, CheckCircleIcon } from './Icons';
@@ -53,6 +54,10 @@ const PointOfSale: React.FC = () => {
 
     // 2. Función helper para obtener el precio correcto
     const getPrice = (item: Product) => {
+        // Si el precio mayorista es 0 o no está definido, usar siempre el minorista
+        if (!item.wholesalePrice || item.wholesalePrice <= 0) {
+            return item.retailPrice;
+        }
         return priceType === 'wholesale' ? item.wholesalePrice : item.retailPrice;
     };
 
