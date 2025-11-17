@@ -7,7 +7,10 @@ import { PlusIcon, TrashIcon, PencilIcon } from './Icons';
 import AddProductModal from './AddProductModal';
 import EditProductModal from './EditProductModal';
 import { deleteProduct } from '../store/productsSlice';
-import AdjustStockModal from './AdjustStockModal'; // 1. Importar el nuevo modal
+import AdjustStockModal from './AdjustStockModal';
+
+// 1. Definir cuántos items mostrar por página
+const ITEMS_PER_PAGE = 10;
 
 const StockBadge: React.FC<{ stock: number; minStock: number }> = ({ stock, minStock }) => {
     if (stock === 0) {
@@ -29,13 +32,13 @@ const Inventory: React.FC = () => {
     const [supplierFilter, setSupplierFilter] = useState('all');
     const [stockLevelFilter, setStockLevelFilter] = useState('all');
 
+    // 2. Estado para la paginación
+    const [currentPage, setCurrentPage] = useState(1);
+
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-    
-    // 2. Estado para el modal de ajuste y el producto seleccionado
     const [isAdjustModalOpen, setIsAdjustModalOpen] = useState(false);
     const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
-
     const [currentProduct, setCurrentProduct] = useState<Product | null>(null);
 
     const uniqueCategories = useMemo(() => {
@@ -45,7 +48,6 @@ const Inventory: React.FC = () => {
     const uniqueSuppliers = useMemo(() => {
         return [...new Set(products.map(p => p.supplier).filter(Boolean))];
     }, [products]);
-
 
     const handleEdit = (product: Product) => {
         setCurrentProduct(product);
@@ -58,10 +60,9 @@ const Inventory: React.FC = () => {
         }
     };
     
-    // 3. Lógica para manejar la selección (solo un producto a la vez)
     const handleCheckboxChange = (productId: string) => {
         if (selectedProductId === productId) {
-            setSelectedProductId(null); // Deseleccionar si ya estaba seleccionado
+            setSelectedProductId(null);
             setCurrentProduct(null);
         } else {
             setSelectedProductId(productId);
@@ -70,13 +71,13 @@ const Inventory: React.FC = () => {
         }
     };
     
-    // 4. Lógica para abrir el modal de ajuste
     const handleOpenAdjustModal = () => {
         if (currentProduct) {
             setIsAdjustModalOpen(true);
         }
     };
-
+    
+    // 3. Lógica de filtrado (sin cambios)
     const filteredProducts = products.filter(p => {
         const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
                               p.sku.toLowerCase().includes(searchTerm.toLowerCase());
@@ -88,6 +89,19 @@ const Inventory: React.FC = () => {
             (stockLevelFilter === 'high' && p.stock > p.minStock);
         return matchesSearch && matchesCategory && matchesSupplier && matchesStockLevel;
     });
+
+    // 4. Lógica de paginación
+    const totalPages = Math.ceil(filteredProducts.length / ITEMS_PER_PAGE);
+    const paginatedProducts = filteredProducts.slice(
+        (currentPage - 1) * ITEMS_PER_PAGE,
+        currentPage * ITEMS_PER_PAGE
+    );
+
+    const handlePageChange = (newPage: number) => {
+        if (newPage >= 1 && newPage <= totalPages) {
+            setCurrentPage(newPage);
+        }
+    };
 
     return (
         <> 
@@ -137,7 +151,6 @@ const Inventory: React.FC = () => {
                             </select>
                         </div>
                         <div className="flex gap-2 w-full md:w-auto">
-                            {/* 5. Conectar el botón de Ajuste de Stock */}
                             <button 
                                 className="w-full md:w-auto flex-1 whitespace-nowrap px-4 py-2 border border-slate-300 rounded-lg text-slate-700 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
                                 onClick={handleOpenAdjustModal}
@@ -170,9 +183,9 @@ const Inventory: React.FC = () => {
                                 </tr>
                             </thead>
                             <tbody>
-                                {filteredProducts.map(product => (
+                                {/* 5. Mapear sobre paginatedProducts */}
+                                {paginatedProducts.map(product => (
                                     <tr key={product.id} className={`border-b border-slate-100 ${selectedProductId === product.id ? 'bg-blue-50' : 'hover:bg-slate-50'}`}>
-                                        {/* 6. Conectar checkbox */}
                                         <td className="px-4 py-3">
                                             <input 
                                                 type="checkbox" 
@@ -207,10 +220,32 @@ const Inventory: React.FC = () => {
                             </tbody>
                         </table>
                     </div>
+
+                    {/* 6. Controles de Paginación */}
+                    <div className="flex justify-between items-center mt-4 text-sm">
+                        <span className="text-slate-600">
+                            Mostrando {Math.min((currentPage - 1) * ITEMS_PER_PAGE + 1, filteredProducts.length)} - {Math.min(currentPage * ITEMS_PER_PAGE, filteredProducts.length)} de {filteredProducts.length} productos
+                        </span>
+                        <div className="flex gap-2">
+                            <button
+                                onClick={() => handlePageChange(currentPage - 1)}
+                                disabled={currentPage === 1}
+                                className="px-3 py-1 border rounded-md bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                &lt; Anterior
+                            </button>
+                            <button
+                                onClick={() => handlePageChange(currentPage + 1)}
+                                disabled={currentPage === totalPages || totalPages === 0}
+                                className="px-3 py-1 border rounded-md bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                Siguiente &gt;
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
 
-            {/* 7. Renderizar los 3 modales */}
             <AddProductModal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} />
             <EditProductModal 
                 isOpen={isEditModalOpen} 
@@ -221,7 +256,6 @@ const Inventory: React.FC = () => {
                 isOpen={isAdjustModalOpen}
                 onClose={() => {
                     setIsAdjustModalOpen(false);
-                    // Deseleccionamos el producto al cerrar el modal
                     setSelectedProductId(null);
                     setCurrentProduct(null);
                 }}
