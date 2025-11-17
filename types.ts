@@ -21,6 +21,7 @@ export interface Customer {
   balance: number;
 }
 
+// --- INICIO DE MODIFICACIÓN 1 ---
 export interface Supplier {
   id: string;
   name: string;
@@ -28,7 +29,9 @@ export interface Supplier {
   phone: string;
   email: string;
   status: 'Active' | 'Inactive' | 'Pending';
+  balance: number; // Saldo que adeudamos al proveedor
 }
+// --- FIN DE MODIFICACIÓN 1 ---
 
 export interface Check {
     id: string;
@@ -45,23 +48,42 @@ export interface CartItem extends Product {
     quantity: number;
 }
 
-// --- Interfaces añadidas para el historial de ventas ---
-
 export interface SaleItem extends CartItem {
-  // Aquí podríamos añadir campos específicos de la venta si quisiéramos
-  // (ej. precio al momento de la venta, descuento aplicado, etc.)
+  // (Sin cambios)
 }
 
 export interface Sale {
   id: string;
-  date: string; // Guardaremos la fecha como un string ISO (new Date().toISOString())
-  customerId: string; // 'final' para Consumidor Final
+  date: string; 
+  customerId: string; 
   customerName: string;
   items: SaleItem[];
   subtotal: number;
   tax: number;
   total: number;
-  paymentMethod: 'efectivo' | 'debito' | 'cheque' | 'cuenta corriente'; // Añadido 'cuenta corriente'
-  paidAmount: number; // Monto que pagó en el momento
-  dueAmount: number; // Saldo pendiente (total - paidAmount)
+  paymentMethod: 'efectivo' | 'debito' | 'cheque' | 'cuenta corriente';
+  paidAmount: number;
+  dueAmount: number;
 }
+
+// --- INICIO DE NUEVO CÓDIGO ---
+
+export interface PurchaseItem {
+  productId: string;
+  name: string; // Guardamos el nombre al momento de la compra
+  quantity: number;
+  costPrice: number; // Precio de costo al momento de la compra
+}
+
+export interface Purchase {
+  id: string;
+  date: string;
+  supplierId: string;
+  supplierName: string;
+  invoiceNumber: string; // Número de factura/remito del proveedor
+  items: PurchaseItem[];
+  total: number;
+  status: 'Pendiente de pago' | 'Pagada';
+}
+
+// --- FIN DE NUEVO CÓDIGO ---
