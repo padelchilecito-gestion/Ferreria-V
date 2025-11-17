@@ -1,13 +1,12 @@
-import React, { useState } from 'react';
-import { useSelector, useDispatch } from 'react-redux'; // 1. Importar useDispatch
+import React, { useState } from 'react'; // 1. Importar useState
+import { useSelector, useDispatch } from 'react-redux';
 import { RootState, AppDispatch } from '../store';
 import { Customer } from '../types';
 import { PlusIcon, SearchIcon } from './Icons';
 import AddCustomerModal from './AddCustomerModal';
-import EditCustomerModal from './EditCustomerModal'; // 2. Importar el nuevo modal de edición
-import { deleteCustomer } from '../store/customersSlice'; // 3. Importar la acción de eliminar
+import EditCustomerModal from './EditCustomerModal';
+import { deleteCustomer } from '../store/customersSlice';
 
-// Modificamos CustomerDetail para que reciba los manejadores de eventos
 interface CustomerDetailProps {
   customer: Customer | null;
   onEdit: () => void;
@@ -23,7 +22,6 @@ const CustomerDetail: React.FC<CustomerDetailProps> = ({ customer, onEdit, onDel
       );
   }
 
-  // 4. Conectamos los botones a las funciones recibidas por props
   return (
       <div className="flex-1 bg-white p-6 rounded-xl shadow-sm">
           <div className="flex items-center gap-4 pb-6 border-b">
@@ -34,7 +32,6 @@ const CustomerDetail: React.FC<CustomerDetailProps> = ({ customer, onEdit, onDel
               </div>
           </div>
           <div className="py-6 space-y-4">
-              {/* ... (el resto de los campos de detalle no cambian) ... */}
               <div className="flex items-center">
                   <span className="w-24 font-medium text-sm text-slate-500">Email</span>
                   <span className="text-slate-700">{customer.email}</span>
@@ -78,30 +75,34 @@ const CustomerDetail: React.FC<CustomerDetailProps> = ({ customer, onEdit, onDel
 
 const Customers: React.FC = () => {
   const customers = useSelector((state: RootState) => state.customers.customers);
-  const dispatch = useDispatch<AppDispatch>(); // 5. Obtener el dispatch
+  const dispatch = useDispatch<AppDispatch>(); 
 
-  // 6. Estados para ambos modales
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(customers[0] || null);
 
-  // 7. Lógica para los botones de Editar y Eliminar
+  // 2. Estado para la búsqueda
+  const [searchTerm, setSearchTerm] = useState('');
+
   const handleEdit = () => {
-    if (!selectedCustomer) return; // No hacer nada si no hay cliente seleccionado
-    setIsEditModalOpen(true); // Abrir el modal de edición
+    if (!selectedCustomer) return;
+    setIsEditModalOpen(true);
   };
 
   const handleDelete = () => {
     if (!selectedCustomer) return;
     
-    // Pedir confirmación antes de eliminar
     if (window.confirm(`¿Está seguro de que desea eliminar a ${selectedCustomer.name}?`)) {
       dispatch(deleteCustomer(selectedCustomer.id));
-      // Limpiar la selección
       setSelectedCustomer(null);
     }
   };
+
+  // 3. Filtramos los clientes
+  const filteredCustomers = customers.filter(c => 
+    c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    c.cuit.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   return (
       <>
@@ -124,7 +125,14 @@ const Customers: React.FC = () => {
                   <div className="lg:w-2/3 bg-white p-4 rounded-xl shadow-sm">
                       <div className="relative mb-4">
                           <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-                          <input type="text" placeholder="Buscar por Nombre, CUIT/DNI..." className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg" />
+                          {/* 4. Conectamos el input al estado */}
+                          <input 
+                            type="text" 
+                            placeholder="Buscar por Nombre, CUIT/DNI..." 
+                            className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg"
+                            value={searchTerm}
+                            onChange={e => setSearchTerm(e.target.value)}
+                          />
                       </div>
                       <div className="overflow-x-auto">
                           <table className="w-full text-left">
@@ -137,7 +145,8 @@ const Customers: React.FC = () => {
                                   </tr>
                               </thead>
                               <tbody>
-                                  {customers.map(customer => (
+                                  {/* 5. Mapeamos sobre filteredCustomers */}
+                                  {filteredCustomers.map(customer => (
                                       <tr 
                                           key={customer.id} 
                                           onClick={() => setSelectedCustomer(customer)}
@@ -154,7 +163,6 @@ const Customers: React.FC = () => {
                       </div>
                   </div>
                   <div className="lg:w-1/3">
-                      {/* 8. Pasar las funciones al detalle */}
                       <CustomerDetail 
                         customer={selectedCustomer} 
                         onEdit={handleEdit}
@@ -164,7 +172,6 @@ const Customers: React.FC = () => {
               </div>
           </div>
           
-          {/* 9. Renderizar ambos modales */}
           <AddCustomerModal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} />
           <EditCustomerModal 
             isOpen={isEditModalOpen} 
