@@ -1,3 +1,4 @@
+// components/Inventory.tsx
 import React, { useState } from 'react';
 import { useSelector, useDispatch } from 'react-redux'; // 1. Importar useDispatch
 import { RootState, AppDispatch } from '../store';
@@ -8,7 +9,6 @@ import EditProductModal from './EditProductModal'; // 3. Importar modal de edici
 import { deleteProduct } from '../store/productsSlice'; // 4. Importar acción de eliminar
 
 const StockBadge: React.FC<{ stock: number; minStock: number }> = ({ stock, minStock }) => {
-    // ... (sin cambios) ...
     if (stock === 0) {
         return <span className="bg-red-100 text-red-800 text-xs font-medium px-2.5 py-0.5 rounded-full">Sin Stock</span>;
     }
@@ -41,7 +41,7 @@ const Inventory: React.FC = () => {
     };
     
     return (
-        <> 
+        <> {/* 4. Envolvemos en un Fragment */}
             <div className="space-y-6">
                 <div>
                     <h1 className="text-2xl font-bold text-slate-800 hidden lg:block">Gestión de Inventario</h1>
@@ -80,6 +80,7 @@ const Inventory: React.FC = () => {
                         <table className="w-full text-left">
                             <thead className="text-xs text-slate-500 uppercase bg-slate-50">
                                 <tr>
+                                    {/* Eliminamos el checkbox por simplicidad */}
                                     <th className="px-4 py-3">Código/SKU</th>
                                     <th className="px-4 py-3">Nombre</th>
                                     <th className="px-4 py-3">Proveedor</th>
@@ -104,12 +105,14 @@ const Inventory: React.FC = () => {
                                             <button 
                                                 onClick={() => handleEdit(product)}
                                                 className="text-blue-600 hover:text-blue-800 px-2"
+                                                aria-label={`Editar ${product.name}`}
                                             >
                                                 <PencilIcon className="w-4 h-4 inline-block" />
                                             </button>
                                             <button 
                                                 onClick={() => handleDelete(product.id, product.name)}
                                                 className="text-red-600 hover:text-red-800 px-2"
+                                                aria-label={`Eliminar ${product.name}`}
                                             >
                                                 <TrashIcon className="w-4 h-4 inline-block" />
                                             </button>
