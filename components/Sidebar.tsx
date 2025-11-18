@@ -3,7 +3,7 @@ import { ViewType } from '../App';
 import { 
     DashboardIcon, SalesIcon, InventoryIcon, CustomersIcon, SuppliersIcon, 
     ReportsIcon, SettingsIcon, LogoutIcon, ChecksIcon, CubeIcon,
-    ShoppingBagIcon // 1. Importar el ícono
+    ShoppingBagIcon, ClockIcon // 1. Importar ClockIcon
 } from './Icons';
 
 interface SidebarProps {
@@ -14,14 +14,15 @@ interface SidebarProps {
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ activeView, setActiveView, isOpen, setOpen }) => {
-  // 2. Añadir "Compras" a la lista de navegación
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: DashboardIcon },
     { id: 'sales', label: 'Ventas', icon: SalesIcon },
+    // 2. Añadir el item de Historial de Ventas aquí
+    { id: 'salesHistory', label: 'Historial Ventas', icon: ClockIcon }, 
     { id: 'inventory', label: 'Inventario', icon: InventoryIcon },
     { id: 'customers', label: 'Clientes', icon: CustomersIcon },
     { id: 'suppliers', label: 'Proveedores', icon: SuppliersIcon },
-    { id: 'purchases', label: 'Compras', icon: ShoppingBagIcon }, // <-- NUEVO
+    { id: 'purchases', label: 'Compras', icon: ShoppingBagIcon },
     { id: 'checks', label: 'Cheques', icon: ChecksIcon },
     { id: 'reports', label: 'Reportes', icon: ReportsIcon },
   ];
@@ -87,7 +88,6 @@ const Sidebar: React.FC<SidebarProps> = ({ activeView, setActiveView, isOpen, se
         <div className="hidden lg:block lg:w-64 lg:flex-shrink-0">
             {sidebarContent}
         </div>
-        {/* Mobile Sidebar */}
         <div className={`fixed inset-0 z-40 lg:hidden transition-opacity duration-300 ${isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
             <div className="absolute inset-0 bg-black/50" onClick={() => setOpen(false)}></div>
             <div className={`relative w-64 h-full bg-white transition-transform duration-300 ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}>
