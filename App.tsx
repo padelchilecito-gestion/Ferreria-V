@@ -1,4 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react'; // Importar useEffect
+import { useDispatch } from 'react-redux'; // Importar useDispatch
+import { AppDispatch } from './store'; // Importar AppDispatch
+import { fetchProducts } from './store/productsSlice'; // Importar la acción de carga
+
 import Sidebar from './components/Sidebar';
 import Dashboard from './components/Dashboard';
 import PointOfSale from './components/PointOfSale';
@@ -8,15 +12,23 @@ import Suppliers from './components/Suppliers';
 import Checks from './components/Checks';
 import Reports from './components/Reports';
 import Settings from './components/Settings';
-import Purchases from './components/Purchases'; // 1. Importar el nuevo componente
+import Purchases from './components/Purchases';
 import { MenuIcon } from './components/Icons';
 
-// 2. Añadir 'purchases' al ViewType
 export type ViewType = 'dashboard' | 'sales' | 'inventory' | 'customers' | 'suppliers' | 'purchases' | 'checks' | 'reports' | 'settings';
 
 const App: React.FC = () => {
   const [activeView, setActiveView] = useState<ViewType>('dashboard');
   const [isSidebarOpen, setSidebarOpen] = useState(false);
+  
+  // Inicializar el dispatch
+  const dispatch = useDispatch<AppDispatch>();
+
+  // Cargar datos iniciales
+  useEffect(() => {
+    dispatch(fetchProducts());
+    // Aquí añadiremos fetchCustomers(), fetchSuppliers(), etc. en las siguientes partes
+  }, [dispatch]);
 
   const renderView = () => {
     switch (activeView) {
@@ -30,7 +42,6 @@ const App: React.FC = () => {
         return <Customers />;
       case 'suppliers':
         return <Suppliers />;
-      // 3. Añadir el caso para 'purchases'
       case 'purchases':
         return <Purchases />;
       case 'checks':
@@ -44,14 +55,13 @@ const App: React.FC = () => {
     }
   };
 
-  // 4. Añadir el título para la nueva vista
   const viewTitles: Record<ViewType, string> = {
     dashboard: 'Bienvenido, Gerente',
     sales: 'Punto de Venta (POS)',
     inventory: 'Gestión de Inventario',
     customers: 'Gestión de Clientes',
     suppliers: 'Gestión de Proveedores',
-    purchases: 'Gestión de Compras', // <-- NUEVO
+    purchases: 'Gestión de Compras',
     checks: 'Gestión de Cartera de Cheques',
     reports: 'Reportes y Estadísticas',
     settings: 'Configuración',
