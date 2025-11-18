@@ -1,10 +1,8 @@
-// components/AddCheckModal.tsx
 import React, { useState } from 'react';
 import { useDispatch } from 'react-redux';
-import { nanoid } from 'nanoid';
 import { AppDispatch } from '../store';
 import { addCheck } from '../store/checksSlice';
-import { Check } from '../types';
+// import { Check } from '../types';
 import { XIcon } from './Icons';
 
 interface AddCheckModalProps {
@@ -12,7 +10,6 @@ interface AddCheckModalProps {
   onClose: () => void;
 }
 
-// Función simple para obtener la fecha de hoy en formato YYYY-MM-DD
 const getTodayDate = () => {
   const today = new Date();
   return today.toISOString().split('T')[0];
@@ -21,38 +18,43 @@ const getTodayDate = () => {
 const AddCheckModal: React.FC<AddCheckModalProps> = ({ isOpen, onClose }) => {
   const dispatch = useDispatch<AppDispatch>();
   
-  // Estado local para los campos del formulario
   const [bank, setBank] = useState('');
   const [number, setNumber] = useState('');
   const [issuer, setIssuer] = useState('');
   const [amount, setAmount] = useState(0);
   const [issueDate, setIssueDate] = useState(getTodayDate());
   const [dueDate, setDueDate] = useState(getTodayDate());
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsSubmitting(true);
     
-    const newCheck: Check = {
-      id: nanoid(),
+    const newCheck = {
       bank,
       number,
       issuer,
       amount: Number(amount) || 0,
       issueDate,
       dueDate,
-      status: 'En cartera', // Estado inicial por defecto
+      status: 'En cartera' as const,
     };
 
-    dispatch(addCheck(newCheck));
-    
-    // Limpiar formulario y cerrar
-    onClose();
-    setBank('');
-    setNumber('');
-    setIssuer('');
-    setAmount(0);
-    setIssueDate(getTodayDate());
-    setDueDate(getTodayDate());
+    try {
+        await dispatch(addCheck(newCheck)).unwrap();
+        
+        onClose();
+        setBank('');
+        setNumber('');
+        setIssuer('');
+        setAmount(0);
+        setIssueDate(getTodayDate());
+        setDueDate(getTodayDate());
+    } catch (error) {
+        alert("Error al guardar el cheque: " + error);
+    } finally {
+        setIsSubmitting(false);
+    }
   };
 
   if (!isOpen) {
@@ -153,14 +155,16 @@ const AddCheckModal: React.FC<AddCheckModalProps> = ({ isOpen, onClose }) => {
               type="button"
               onClick={onClose}
               className="px-4 py-2 bg-white border border-slate-300 rounded-lg text-slate-700 hover:bg-slate-50"
+              disabled={isSubmitting}
             >
               Cancelar
             </button>
             <button
               type="submit"
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-blue-400"
+              disabled={isSubmitting}
             >
-              Guardar Cheque
+              {isSubmitting ? 'Guardando...' : 'Guardar Cheque'}
             </button>
           </div>
         </form>
