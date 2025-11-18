@@ -128,7 +128,7 @@ const Dashboard: React.FC<{setActiveView: (view: ViewType) => void}> = ({ setAct
         <div className="space-y-6">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
-                    <h1 className="text-2xl font-bold text-slate-800 hidden lg:block">Bienvenido, Gerente</h1>
+                    <h1 className="text-2xl font-bold text-slate-800 hidden lg:block">Bienvenido, Marcelo</h1>
                     <p className="text-slate-500 mt-1">Aquí está el resumen general de su negocio hoy.</p>
                 </div>
                 <div className="flex items-center gap-3 w-full sm:w-auto">
