@@ -1,4 +1,3 @@
-// components/AddSupplierPaymentModal.tsx
 import React, { useState, useEffect } from 'react';
 import { useDispatch } from 'react-redux';
 import { AppDispatch } from '../store';
@@ -15,33 +14,39 @@ interface AddSupplierPaymentModalProps {
 const AddSupplierPaymentModal: React.FC<AddSupplierPaymentModalProps> = ({ isOpen, onClose, supplier }) => {
   const dispatch = useDispatch<AppDispatch>();
   const [amount, setAmount] = useState(0);
-  const [note, setNote] = useState(''); // Opcional: para referencia
+  const [note, setNote] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Pre-rellenar el campo con el saldo deudor
   useEffect(() => {
     if (supplier && supplier.balance > 0) {
       setAmount(supplier.balance);
     } else {
       setAmount(0);
     }
-    setNote(''); // Limpiar nota
+    setNote('');
   }, [supplier, isOpen]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!supplier || Number(amount) <= 0) {
         alert("Por favor ingrese un monto válido.");
         return;
     }
+    setIsSubmitting(true);
 
-    // Despachar la nueva acción
-    dispatch(addSupplierPayment({
-        supplierId: supplier.id, 
-        paymentAmount: Number(amount)
-    }));
-    
-    onClose();
-    setAmount(0);
+    try {
+      await dispatch(addSupplierPayment({
+          supplierId: supplier.id, 
+          paymentAmount: Number(amount)
+      })).unwrap();
+      
+      onClose();
+      setAmount(0);
+    } catch (error) {
+      alert("Error al registrar el pago: " + error);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   if (!isOpen || !supplier) {
@@ -110,14 +115,16 @@ const AddSupplierPaymentModal: React.FC<AddSupplierPaymentModalProps> = ({ isOpe
               type="button"
               onClick={onClose}
               className="px-4 py-2 bg-white border border-slate-300 rounded-lg text-slate-700 hover:bg-slate-50"
+              disabled={isSubmitting}
             >
               Cancelar
             </button>
             <button
               type="submit"
-              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-green-400"
+              disabled={isSubmitting}
             >
-              Guardar Pago
+              {isSubmitting ? 'Procesando...' : 'Guardar Pago'}
             </button>
           </div>
         </form>
