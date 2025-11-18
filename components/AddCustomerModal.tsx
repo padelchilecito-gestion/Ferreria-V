@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { useDispatch } from 'react-redux';
-import { nanoid } from 'nanoid';
+// import { nanoid } from 'nanoid'; // Eliminado
 import { AppDispatch } from '../store';
 import { addCustomer } from '../store/customersSlice';
-import { Customer } from '../types';
+// import { Customer } from '../types';
 import { XIcon } from './Icons';
 
 interface AddCustomerModalProps {
@@ -14,38 +14,41 @@ interface AddCustomerModalProps {
 const AddCustomerModal: React.FC<AddCustomerModalProps> = ({ isOpen, onClose }) => {
   const dispatch = useDispatch<AppDispatch>();
   
-  // Estado local para manejar los campos del formulario
   const [name, setName] = useState('');
   const [cuit, setCuit] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [address, setAddress] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsSubmitting(true);
     
-    // 1. Creamos el nuevo objeto de cliente
-    const newCustomer: Customer = {
-      id: nanoid(), // Generamos un ID único
+    const newCustomer = {
       name,
       cuit,
       email,
       phone,
       address,
-      balance: 0, // Saldo inicial de 0
-      accountStatus: 'Active', // Por defecto 'Active'
+      balance: 0,
+      accountStatus: 'Active' as const,
     };
 
-    // 2. Despachamos la acción para añadirlo al store
-    dispatch(addCustomer(newCustomer));
-    
-    // 3. Limpiamos el formulario y cerramos el modal
-    onClose();
-    setName('');
-    setCuit('');
-    setEmail('');
-    setPhone('');
-    setAddress('');
+    try {
+      await dispatch(addCustomer(newCustomer)).unwrap();
+      
+      onClose();
+      setName('');
+      setCuit('');
+      setEmail('');
+      setPhone('');
+      setAddress('');
+    } catch (error) {
+      alert("Error al guardar cliente: " + error);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   if (!isOpen) {
@@ -53,17 +56,14 @@ const AddCustomerModal: React.FC<AddCustomerModalProps> = ({ isOpen, onClose }) 
   }
 
   return (
-    // Fondo oscuro del modal
     <div 
       className="fixed inset-0 bg-black/50 z-40 flex items-center justify-center"
       onClick={onClose}
     >
-      {/* Contenedor del Modal */}
       <div 
         className="bg-white w-full max-w-lg rounded-xl shadow-lg"
-        onClick={e => e.stopPropagation()} // Evita que el clic dentro del modal lo cierre
+        onClick={e => e.stopPropagation()}
       >
-        {/* Cabecera del Modal */}
         <div className="flex justify-between items-center p-4 border-b">
           <h2 className="text-lg font-bold text-slate-800">Añadir Nuevo Cliente</h2>
           <button onClick={onClose} className="text-slate-500 hover:text-slate-800">
@@ -71,7 +71,6 @@ const AddCustomerModal: React.FC<AddCustomerModalProps> = ({ isOpen, onClose }) 
           </button>
         </div>
 
-        {/* Formulario */}
         <form onSubmit={handleSubmit}>
           <div className="p-6 space-y-4">
             <div>
@@ -125,20 +124,21 @@ const AddCustomerModal: React.FC<AddCustomerModalProps> = ({ isOpen, onClose }) 
             </div>
           </div>
 
-          {/* Pie del Modal */}
           <div className="p-4 border-t bg-slate-50 rounded-b-xl flex justify-end gap-3">
             <button
               type="button"
               onClick={onClose}
               className="px-4 py-2 bg-white border border-slate-300 rounded-lg text-slate-700 hover:bg-slate-50"
+              disabled={isSubmitting}
             >
               Cancelar
             </button>
             <button
               type="submit"
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-blue-400"
+              disabled={isSubmitting}
             >
-              Guardar Cliente
+              {isSubmitting ? 'Guardando...' : 'Guardar Cliente'}
             </button>
           </div>
         </form>
