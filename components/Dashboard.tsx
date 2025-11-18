@@ -38,9 +38,8 @@ const aggregateSalesByDay = (sales: Sale[]) => {
         3: { name: "Mié", Ventas: 0 }, 4: { name: "Jue", Ventas: 0 }, 5: { name: "Vie", Ventas: 0 },
         6: { name: "Sáb", Ventas: 0 },
     };
-    const today = new Date();
     const oneWeekAgo = new Date();
-    oneWeekAgo.setDate(today.getDate() - 7);
+    oneWeekAgo.setDate(new Date().getDate() - 7);
 
     sales.forEach(sale => {
         const saleDate = new Date(sale.date);
@@ -86,7 +85,6 @@ const Dashboard: React.FC<{setActiveView: (view: ViewType) => void}> = ({ setAct
     const allChecks = useSelector((state: RootState) => state.checks.checks);
     const allPurchases = useSelector((state: RootState) => state.purchases.purchases);
 
-    // Corregido: Agregamos 'lowStockProducts' al destructuring
     const { salesToday, profitToday, salesChartData, lowStockProductCount, lowStockProducts, upcomingChecks, pendingPurchases } = useMemo(() => {
         const todayStr = getTodayString();
         const salesTodayArr = allSales.filter(s => s.date.startsWith(todayStr));
@@ -102,7 +100,7 @@ const Dashboard: React.FC<{setActiveView: (view: ViewType) => void}> = ({ setAct
         const totalProfit = totalSales - totalCost;
         const chartData = aggregateSalesByDay(allSales);
         
-        // Calcular productos con poco stock y la lista recortada a 5
+        // Calcular productos con poco stock
         const lowStockList = allProducts.filter(p => p.stock <= p.minStock);
         const lowStockCount = lowStockList.length;
         const lowStockProductsData = lowStockList.slice(0, 5);
@@ -118,7 +116,7 @@ const Dashboard: React.FC<{setActiveView: (view: ViewType) => void}> = ({ setAct
             profitToday: totalProfit,
             salesChartData: chartData,
             lowStockProductCount: lowStockCount,
-            lowStockProducts: lowStockProductsData, // <--- Agregado aquí
+            lowStockProducts: lowStockProductsData,
             upcomingChecks: upcomingChecksData,
             pendingPurchases: pendingPurchasesData,
         };
@@ -182,8 +180,10 @@ const Dashboard: React.FC<{setActiveView: (view: ViewType) => void}> = ({ setAct
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div className="lg:col-span-2 bg-white p-5 rounded-xl shadow-sm">
                     <h2 className="text-lg font-semibold text-slate-800 mb-4">Rendimiento de Ventas (Últ. 7 días)</h2>
-                    <div className="h-72">
-                        <ResponsiveContainer width="100%" height="100%">
+                    
+                    {/* AQUÍ ESTÁ EL CAMBIO: Estilos en línea para asegurar que tenga dimensiones */}
+                    <div className="h-72 w-full" style={{ minHeight: '300px', width: '100%' }}>
+                        <ResponsiveContainer width="100%" height="100%" minHeight={300}>
                             <BarChart data={salesChartData} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
                                 <CartesianGrid strokeDasharray="3 3" vertical={false} />
                                 <XAxis dataKey="name" tick={{ fill: '#64748b' }} axisLine={{ stroke: '#e2e8f0' }} tickLine={false} />
@@ -193,6 +193,7 @@ const Dashboard: React.FC<{setActiveView: (view: ViewType) => void}> = ({ setAct
                             </BarChart>
                         </ResponsiveContainer>
                     </div>
+
                 </div>
 
                 <div className="bg-white p-5 rounded-xl shadow-sm">
