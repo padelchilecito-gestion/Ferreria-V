@@ -2,11 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState, AppDispatch } from '../store';
 import { Check } from '../types';
-// 1. Importamos TrashIcon
+// Importamos TrashIcon
 import { PlusIcon, PencilIcon, TrashIcon } from './Icons';
 import AddCheckModal from './AddCheckModal';
 import UpdateCheckStatusModal from './UpdateCheckStatusModal';
-// 2. Importamos la acción de eliminar
+// Importamos la acción de eliminar
 import { deleteCheck } from '../store/checksSlice';
 
 const ITEMS_PER_PAGE = 10;
@@ -41,7 +41,7 @@ const Checks: React.FC = () => {
         setIsUpdateModalOpen(true);
     };
 
-    // 3. Función para manejar la eliminación
+    // Función para manejar la eliminación
     const handleDelete = async (id: string, number: string) => {
         if (window.confirm(`¿Está seguro de que desea eliminar el cheque N° ${number}? Esta acción no se puede deshacer.`)) {
             try {
@@ -164,7 +164,7 @@ const Checks: React.FC = () => {
                                                 >
                                                     <PencilIcon className="w-5 h-5" />
                                                 </button>
-                                                {/* 4. Botón de eliminar */}
+                                                {/* Botón de eliminar */}
                                                 <button 
                                                     onClick={() => handleDelete(check.id, check.number)}
                                                     className="text-red-500 hover:text-red-700"
