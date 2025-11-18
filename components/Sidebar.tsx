@@ -59,8 +59,8 @@ const Sidebar: React.FC<SidebarProps> = ({ activeView, setActiveView, isOpen, se
                 <CubeIcon className="w-6 h-6 text-white" />
             </div>
             <div>
-              <h1 className="text-lg font-bold text-slate-800">Ferretería Central</h1>
-              <p className="text-xs text-slate-500">manager@email.com</p>
+              <h1 className="text-lg font-bold text-slate-800">MV Materiales de Construccio</h1>
+              <p className="text-xs text-slate-500"></p>
             </div>
           </div>
         </div>
