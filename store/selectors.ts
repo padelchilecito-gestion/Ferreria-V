@@ -1,19 +1,25 @@
 // store/selectors.ts
 import { createSelector } from '@reduxjs/toolkit';
 import { RootState } from './index';
-import { Sale, Check, Product, Customer } from '../types';
+import { Sale, Check, Product, Customer, Supplier, Purchase } from '../types';
 
 // --- Selectores Base (Sacan los slices del estado) ---
 export const selectProductsState = (state: RootState) => state.products;
 export const selectCustomersState = (state: RootState) => state.customers;
 export const selectSalesState = (state: RootState) => state.sales;
 export const selectChecksState = (state: RootState) => state.checks;
+// Agregamos los nuevos estados base
+export const selectSuppliersState = (state: RootState) => state.suppliers;
+export const selectPurchasesState = (state: RootState) => state.purchases;
 
-// --- Selectores de Estado Directo ---
+// --- Selectores de Estado Directo (Devuelven los arrays de datos) ---
 export const selectAllProducts = (state: RootState) => state.products.products;
 export const selectAllCustomers = (state: RootState) => state.customers.customers;
 export const selectAllSales = (state: RootState) => state.sales.sales;
 export const selectAllChecks = (state: RootState) => state.checks.checks;
+// Agregamos los selectores específicos que faltaban
+export const selectAllSuppliers = (state: RootState) => state.suppliers.suppliers;
+export const selectAllPurchases = (state: RootState) => state.purchases.purchases;
 
 // --- Helpers (Funciones Puras) ---
 const getTodayString = () => {
@@ -112,7 +118,6 @@ export const selectUpcomingChecks = createSelector(
     [selectAllChecks],
     (allChecks) => getUpcomingChecks(allChecks, 7) // Alerta con 7 días de antelación
 );
-
 
 // --- Selectores Computados (Memorizados) para Reports ---
 
