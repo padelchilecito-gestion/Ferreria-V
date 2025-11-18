@@ -1,9 +1,8 @@
-// components/AddPurchaseModal.tsx
 import React, { useState } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
-import { nanoid } from 'nanoid';
+// import { nanoid } from 'nanoid'; // Eliminado
 import { AppDispatch, RootState } from '../store';
-import { Product, Supplier, Purchase, PurchaseItem } from '../types';
+import { PurchaseItem } from '../types';
 import { addPurchase } from '../store/purchasesSlice';
 import { increaseStock } from '../store/productsSlice';
 import { updateSupplierBalance } from '../store/suppliersSlice';
@@ -19,15 +18,13 @@ const AddPurchaseModal: React.FC<AddPurchaseModalProps> = ({ isOpen, onClose }) 
   const allProducts = useSelector((state: RootState) => state.products.products);
   const allSuppliers = useSelector((state: RootState) => state.suppliers.suppliers);
 
-  // Estado para el formulario principal
   const [supplierId, setSupplierId] = useState('');
   const [invoiceNumber, setInvoiceNumber] = useState('');
   const [items, setItems] = useState<PurchaseItem[]>([]);
-  
-  // Estado para el sub-formulario de añadir item
   const [currentProductId, setCurrentProductId] = useState('');
   const [currentQuantity, setCurrentQuantity] = useState(1);
   const [currentCost, setCurrentCost] = useState(0);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleClose = () => {
     setSupplierId('');
@@ -60,7 +57,6 @@ const AddPurchaseModal: React.FC<AddPurchaseModalProps> = ({ isOpen, onClose }) 
     };
     
     setItems([...items, newItem]);
-    
     setCurrentProductId('');
     setCurrentQuantity(1);
     setCurrentCost(0);
@@ -72,8 +68,7 @@ const AddPurchaseModal: React.FC<AddPurchaseModalProps> = ({ isOpen, onClose }) 
 
   const totalPurchase = items.reduce((acc, item) => acc + (item.costPrice * item.quantity), 0);
 
-  // Guardar la compra
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!supplierId) {
@@ -88,40 +83,45 @@ const AddPurchaseModal: React.FC<AddPurchaseModalProps> = ({ isOpen, onClose }) 
     const supplier = allSuppliers.find(s => s.id === supplierId);
     if (!supplier) return; 
 
-    // 1. Crear el objeto de Compra
-    const newPurchase: Purchase = {
-        id: nanoid(),
+    setIsSubmitting(true);
+
+    const newPurchase = {
         date: new Date().toISOString(),
         supplierId: supplier.id,
         supplierName: supplier.name,
         invoiceNumber: invoiceNumber || 'S/N',
         items: items,
         total: totalPurchase,
-        status: 'Pendiente de pago',
+        status: 'Pendiente de pago' as const,
     };
 
-    // 2. Despachar la acción para guardar la compra
-    dispatch(addPurchase(newPurchase));
+    try {
+        // 1. Guardar Compra
+        await dispatch(addPurchase(newPurchase)).unwrap();
 
-    // --- INICIO DE MODIFICACIÓN ---
-    // 3. Despachar la acción para incrementar el stock (y AHORA TAMBIÉN EL COSTO)
-    items.forEach(item => {
-        dispatch(increaseStock({
-            productId: item.productId,
-            quantity: item.quantity,
-            newCostPrice: item.costPrice // <-- ¡AQUÍ ESTÁ EL CAMBIO!
-        }));
-    });
-    // --- FIN DE MODIFICACIÓN ---
+        // 2. Incrementar Stock (Paralelo)
+        const stockPromises = items.map(item => 
+            dispatch(increaseStock({
+                productId: item.productId,
+                quantity: item.quantity,
+                newCostPrice: item.costPrice 
+            })).unwrap()
+        );
+        await Promise.all(stockPromises);
 
-    // 4. Despachar la acción para actualizar el saldo (deuda) con el proveedor
-    dispatch(updateSupplierBalance({
-        supplierId: supplier.id,
-        dueAmount: totalPurchase 
-    }));
-    
-    // 5. Limpiar y cerrar
-    handleClose();
+        // 3. Actualizar deuda del proveedor
+        await dispatch(updateSupplierBalance({
+            supplierId: supplier.id,
+            dueAmount: totalPurchase 
+        })).unwrap();
+        
+        handleClose();
+    } catch (error) {
+        console.error("Error al registrar compra:", error);
+        alert("Hubo un error al registrar la compra.");
+    } finally {
+        setIsSubmitting(false);
+    }
   };
 
   if (!isOpen) {
@@ -148,10 +148,7 @@ const AddPurchaseModal: React.FC<AddPurchaseModalProps> = ({ isOpen, onClose }) 
         </div>
 
         <form onSubmit={handleSubmit} className="flex-1 overflow-hidden flex flex-col">
-          {/* Contenido del formulario con scroll */}
           <div className="p-6 space-y-4 overflow-y-auto max-h-[70vh]">
-            
-            {/* Sección Proveedor y Factura */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="text-sm font-medium text-slate-600">Proveedor</label>
@@ -179,7 +176,6 @@ const AddPurchaseModal: React.FC<AddPurchaseModalProps> = ({ isOpen, onClose }) 
               </div>
             </div>
 
-            {/* Sección Añadir Items */}
             <div className="border border-slate-200 rounded-lg p-4 space-y-3">
                 <h3 className="font-semibold text-slate-700">Añadir Productos a la Compra</h3>
                 <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
@@ -232,7 +228,6 @@ const AddPurchaseModal: React.FC<AddPurchaseModalProps> = ({ isOpen, onClose }) 
                 </div>
             </div>
 
-            {/* Sección Items Añadidos */}
             <div className="space-y-2">
                 <h3 className="font-semibold text-slate-700">Items en la Compra</h3>
                 {items.length === 0 ? (
@@ -271,7 +266,6 @@ const AddPurchaseModal: React.FC<AddPurchaseModalProps> = ({ isOpen, onClose }) 
                 )}
             </div>
 
-            {/* Total */}
             <div className="flex justify-end mt-4">
                 <div className="text-right">
                     <span className="text-sm text-slate-600">TOTAL DE LA COMPRA</span>
@@ -281,20 +275,21 @@ const AddPurchaseModal: React.FC<AddPurchaseModalProps> = ({ isOpen, onClose }) 
 
           </div>
 
-          {/* Pie del Modal */}
           <div className="p-4 border-t bg-slate-50 rounded-b-xl flex justify-end gap-3">
             <button
               type="button"
               onClick={handleClose}
               className="px-4 py-2 bg-white border border-slate-300 rounded-lg text-slate-700 hover:bg-slate-50"
+              disabled={isSubmitting}
             >
               Cancelar
             </button>
             <button
               type="submit"
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-blue-400"
+              disabled={isSubmitting}
             >
-              Guardar Compra
+              {isSubmitting ? 'Procesando...' : 'Guardar Compra'}
             </button>
           </div>
         </form>
