@@ -4,7 +4,7 @@ import { TrendUpIcon, UserGroupIcon, AlertTriangleIcon, PlusIcon, CheckCircleIco
 import { ViewType } from '../App';
 import { useSelector } from 'react-redux';
 import { RootState } from '../store';
-import { Sale, Check, Purchase } from '../types'; // 1. Importar el tipo 'Purchase'
+import { Sale, Check } from '../types';
 
 const StatCard: React.FC<{ title: string; value: string; change: string; isPositive: boolean; icon: React.ElementType }> = ({ title, value, change, isPositive, icon: Icon }) => (
     <div className="bg-white p-5 rounded-xl shadow-sm flex-1">
@@ -84,11 +84,10 @@ const Dashboard: React.FC<{setActiveView: (view: ViewType) => void}> = ({ setAct
     const allCustomers = useSelector((state: RootState) => state.customers.customers);
     const allSales = useSelector((state: RootState) => state.sales.sales);
     const allChecks = useSelector((state: RootState) => state.checks.checks);
-    // 2. Leer las compras del store
     const allPurchases = useSelector((state: RootState) => state.purchases.purchases);
 
-    // 3. Actualizar useMemo para incluir 'pendingPurchases'
-    const { salesToday, profitToday, salesChartData, lowStockProductCount, upcomingChecks, pendingPurchases } = useMemo(() => {
+    // Corregido: Agregamos 'lowStockProducts' al destructuring
+    const { salesToday, profitToday, salesChartData, lowStockProductCount, lowStockProducts, upcomingChecks, pendingPurchases } = useMemo(() => {
         const todayStr = getTodayString();
         const salesTodayArr = allSales.filter(s => s.date.startsWith(todayStr));
         
@@ -102,23 +101,28 @@ const Dashboard: React.FC<{setActiveView: (view: ViewType) => void}> = ({ setAct
 
         const totalProfit = totalSales - totalCost;
         const chartData = aggregateSalesByDay(allSales);
-        const lowStockCount = allProducts.filter(p => p.stock <= p.minStock).length;
+        
+        // Calcular productos con poco stock y la lista recortada a 5
+        const lowStockList = allProducts.filter(p => p.stock <= p.minStock);
+        const lowStockCount = lowStockList.length;
+        const lowStockProductsData = lowStockList.slice(0, 5);
+
         const upcomingChecksData = getUpcomingChecks(allChecks, 7);
         
-        // 4. Calcular las facturas pendientes
         const pendingPurchasesData = allPurchases
             .filter(purchase => purchase.status === 'Pendiente de pago')
-            .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()); // Opcional: mostrar las más antiguas primero
+            .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
         return {
             salesToday: totalSales,
             profitToday: totalProfit,
             salesChartData: chartData,
             lowStockProductCount: lowStockCount,
+            lowStockProducts: lowStockProductsData, // <--- Agregado aquí
             upcomingChecks: upcomingChecksData,
-            pendingPurchases: pendingPurchasesData, // 5. Devolver las facturas pendientes
+            pendingPurchases: pendingPurchasesData,
         };
-    }, [allSales, allProducts, allChecks, allPurchases]); // 6. Añadir allPurchases a las dependencias
+    }, [allSales, allProducts, allChecks, allPurchases]);
 
     const customerCount = allCustomers.length;
 
@@ -191,7 +195,6 @@ const Dashboard: React.FC<{setActiveView: (view: ViewType) => void}> = ({ setAct
                     </div>
                 </div>
 
-                {/* 7. Sección de Alertas y Notificaciones (Actualizada) */}
                 <div className="bg-white p-5 rounded-xl shadow-sm">
                     <h2 className="text-lg font-semibold text-slate-800 mb-4">Alertas y Notificaciones</h2>
                     <ul className="space-y-4">
@@ -217,7 +220,6 @@ const Dashboard: React.FC<{setActiveView: (view: ViewType) => void}> = ({ setAct
                             </li>
                         )}
                         
-                        {/* 8. Alerta de Facturas Pendientes (DINÁMICA) */}
                         {pendingPurchases.length > 0 ? (
                             <li className="flex items-start gap-3">
                                 <div className="mt-1 flex-shrink-0"><DocumentTextIcon className="w-5 h-5 text-red-500" /></div>
