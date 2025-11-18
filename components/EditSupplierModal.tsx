@@ -14,14 +14,13 @@ interface EditSupplierModalProps {
 const EditSupplierModal: React.FC<EditSupplierModalProps> = ({ isOpen, onClose, supplier }) => {
   const dispatch = useDispatch<AppDispatch>();
   
-  // Estado local para los campos del formulario
   const [name, setName] = useState('');
   const [cuit, setCuit] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [status, setStatus] = useState<Supplier['status']>('Active');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Efecto para pre-rellenar el formulario cuando el proveedor cambia
   useEffect(() => {
     if (supplier) {
       setName(supplier.name);
@@ -30,15 +29,15 @@ const EditSupplierModal: React.FC<EditSupplierModalProps> = ({ isOpen, onClose, 
       setPhone(supplier.phone);
       setStatus(supplier.status);
     }
-  }, [supplier, isOpen]); // Se actualiza si el proveedor o la visibilidad cambian
+  }, [supplier, isOpen]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!supplier) return;
+    setIsSubmitting(true);
 
-    // 1. Creamos el objeto de proveedor actualizado
     const updatedSupplier: Supplier = {
-      ...supplier, // Mantenemos el ID
+      ...supplier,
       name,
       cuit,
       email,
@@ -46,11 +45,14 @@ const EditSupplierModal: React.FC<EditSupplierModalProps> = ({ isOpen, onClose, 
       status,
     };
 
-    // 2. Despachamos la acción para actualizarlo en el store
-    dispatch(updateSupplier(updatedSupplier));
-    
-    // 3. Cerramos el modal
-    onClose();
+    try {
+      await dispatch(updateSupplier(updatedSupplier)).unwrap();
+      onClose();
+    } catch (error) {
+      alert("Error al actualizar proveedor: " + error);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   if (!isOpen) {
@@ -134,14 +136,16 @@ const EditSupplierModal: React.FC<EditSupplierModalProps> = ({ isOpen, onClose, 
               type="button"
               onClick={onClose}
               className="px-4 py-2 bg-white border border-slate-300 rounded-lg text-slate-700 hover:bg-slate-50"
+              disabled={isSubmitting}
             >
               Cancelar
             </button>
             <button
               type="submit"
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-blue-400"
+              disabled={isSubmitting}
             >
-              Guardar Cambios
+              {isSubmitting ? 'Guardando...' : 'Guardar Cambios'}
             </button>
           </div>
         </form>
