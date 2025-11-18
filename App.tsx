@@ -6,7 +6,7 @@ import { fetchCustomers } from './store/customersSlice';
 import { fetchSales } from './store/salesSlice';
 import { fetchSuppliers } from './store/suppliersSlice';
 import { fetchPurchases } from './store/purchasesSlice';
-import { fetchChecks } from './store/checksSlice'; // NUEVO IMPORT
+import { fetchChecks } from './store/checksSlice';
 
 import Sidebar from './components/Sidebar';
 import Dashboard from './components/Dashboard';
@@ -18,9 +18,11 @@ import Checks from './components/Checks';
 import Reports from './components/Reports';
 import Settings from './components/Settings';
 import Purchases from './components/Purchases';
+import SalesHistory from './components/SalesHistory'; // 1. Importar el nuevo componente
 import { MenuIcon } from './components/Icons';
 
-export type ViewType = 'dashboard' | 'sales' | 'inventory' | 'customers' | 'suppliers' | 'purchases' | 'checks' | 'reports' | 'settings';
+// 2. Añadir 'salesHistory' al tipo
+export type ViewType = 'dashboard' | 'sales' | 'salesHistory' | 'inventory' | 'customers' | 'suppliers' | 'purchases' | 'checks' | 'reports' | 'settings';
 
 const App: React.FC = () => {
   const [activeView, setActiveView] = useState<ViewType>('dashboard');
@@ -29,13 +31,12 @@ const App: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
 
   useEffect(() => {
-    // Carga inicial de TODOS los datos
     dispatch(fetchProducts());
     dispatch(fetchCustomers());
     dispatch(fetchSales());
     dispatch(fetchSuppliers());
     dispatch(fetchPurchases());
-    dispatch(fetchChecks()); // <--- CARGA DE CHEQUES
+    dispatch(fetchChecks());
   }, [dispatch]);
 
   const renderView = () => {
@@ -44,6 +45,9 @@ const App: React.FC = () => {
         return <Dashboard setActiveView={setActiveView} />;
       case 'sales':
         return <PointOfSale />;
+      // 3. Añadir el caso para la nueva vista
+      case 'salesHistory':
+        return <SalesHistory />;
       case 'inventory':
         return <Inventory />;
       case 'customers':
@@ -66,6 +70,7 @@ const App: React.FC = () => {
   const viewTitles: Record<ViewType, string> = {
     dashboard: 'Bienvenido, Gerente',
     sales: 'Punto de Venta (POS)',
+    salesHistory: 'Historial de Ventas', // 4. Añadir el título
     inventory: 'Gestión de Inventario',
     customers: 'Gestión de Clientes',
     suppliers: 'Gestión de Proveedores',
