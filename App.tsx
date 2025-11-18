@@ -2,8 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { useDispatch } from 'react-redux';
 import { AppDispatch } from './store';
 import { fetchProducts } from './store/productsSlice';
-import { fetchCustomers } from './store/customersSlice'; // NUEVO
-import { fetchSales } from './store/salesSlice'; // NUEVO
+import { fetchCustomers } from './store/customersSlice';
+import { fetchSales } from './store/salesSlice';
+import { fetchSuppliers } from './store/suppliersSlice'; // NUEVO
+import { fetchPurchases } from './store/purchasesSlice'; // NUEVO
+// Nota: Falta fetchChecks para la fase 4
 
 import Sidebar from './components/Sidebar';
 import Dashboard from './components/Dashboard';
@@ -26,10 +29,12 @@ const App: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
 
   useEffect(() => {
-    // Cargar todos los datos principales al iniciar
+    // Cargar TODOS los datos de negocio
     dispatch(fetchProducts());
     dispatch(fetchCustomers());
     dispatch(fetchSales());
+    dispatch(fetchSuppliers());
+    dispatch(fetchPurchases());
   }, [dispatch]);
 
   const renderView = () => {
