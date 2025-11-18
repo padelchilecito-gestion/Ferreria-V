@@ -1,23 +1,22 @@
-// components/PointOfSale.tsx
 import React, { useState, useMemo } from 'react';
-import { Product, CartItem, Customer, Sale } from '../types';
+import { Product, Sale } from '../types';
 import { SearchIcon, TrashIcon, CheckCircleIcon } from './Icons';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState, AppDispatch } from '../store';
 import { addToCart, updateQuantity, removeFromCart, clearCart } from '../store/cartSlice';
 import { reduceStock } from '../store/productsSlice';
-import { nanoid } from 'nanoid';
+// import { nanoid } from 'nanoid'; // Eliminado
 import { addSale } from '../store/salesSlice';
 import { updateCustomerBalance } from '../store/customersSlice';
 
 const PointOfSale: React.FC = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedCustomer, setSelectedCustomer] = useState<string>('final');
-    // 1. priceType ahora controla qué precio se usa
     const [priceType, setPriceType] = useState<'retail' | 'wholesale'>('retail');
     const [paymentMethod, setPaymentMethod] = useState<'efectivo' | 'debito' | 'cheque' | 'cuenta corriente'>('efectivo');
     const [paidAmount, setPaidAmount] = useState(0);
     const [categoryFilter, setCategoryFilter] = useState('all');
+    const [isProcessing, setIsProcessing] = useState(false); // Estado para deshabilitar botón mientras guarda
 
     const dispatch = useDispatch<AppDispatch>();
     const cart = useSelector((state: RootState) => state.cart.items);
@@ -36,7 +35,6 @@ const PointOfSale: React.FC = () => {
         return matchesSearch && matchesCategory;
     });
 
-    // --- Funciones del carrito (sin cambios) ---
     const dispatchAddToCart = (product: Product) => {
         dispatch(addToCart(product));
     };
@@ -50,18 +48,14 @@ const PointOfSale: React.FC = () => {
     const dispatchRemoveFromCart = (productId: string) => {
         dispatch(removeFromCart(productId));
     };
-    // --- Fin Funciones del carrito ---
 
-    // 2. Función helper para obtener el precio correcto
     const getPrice = (item: Product) => {
-        // Si el precio mayorista es 0 o no está definido, usar siempre el minorista
         if (!item.wholesalePrice || item.wholesalePrice <= 0) {
             return item.retailPrice;
         }
         return priceType === 'wholesale' ? item.wholesalePrice : item.retailPrice;
     };
 
-    // 3. Subtotal usa getPrice
     const subtotal = cart.reduce((acc, item) => {
         const price = getPrice(item);
         return acc + (price * item.quantity);
@@ -83,17 +77,19 @@ const PointOfSale: React.FC = () => {
     const dueAmount = total - finalPaidAmount;
     const change = finalPaidAmount > total ? finalPaidAmount - total : 0;
 
-    const handleFinalizeSale = () => {
+    const handleFinalizeSale = async () => {
+        if (cart.length === 0) return;
+        setIsProcessing(true);
+
         const customerName = selectedCustomer === 'final'
             ? 'Consumidor Final'
             : allCustomers.find(c => c.id === selectedCustomer)?.name || 'Cliente Eliminado';
 
-        const newSale: Sale = {
-            id: nanoid(),
+        const newSaleData = {
             date: new Date().toISOString(),
             customerId: selectedCustomer,
             customerName: customerName,
-            items: cart, // El carrito ya tiene los productos (con ambos precios)
+            items: cart, 
             subtotal: subtotal,
             tax: tax,
             total: total,
@@ -102,22 +98,38 @@ const PointOfSale: React.FC = () => {
             dueAmount: dueAmount,
         };
 
-        dispatch(addSale(newSale));
-        cart.forEach(item => {
-            dispatch(reduceStock({ id: item.id, quantity: item.quantity }));
-        });
-        if (selectedCustomer !== 'final' && dueAmount !== 0) {
-            dispatch(updateCustomerBalance({ customerId: selectedCustomer, dueAmount: dueAmount }));
+        try {
+            // 1. Guardar Venta (Async)
+            await dispatch(addSale(newSaleData)).unwrap();
+
+            // 2. Reducir Stock (Async) - Disparamos todas las promesas en paralelo
+            const stockPromises = cart.map(item => 
+                dispatch(reduceStock({ id: item.id, quantity: item.quantity })).unwrap()
+            );
+            await Promise.all(stockPromises);
+
+            // 3. Actualizar Deuda Cliente (Async) si aplica
+            if (selectedCustomer !== 'final' && dueAmount !== 0) {
+                await dispatch(updateCustomerBalance({ customerId: selectedCustomer, dueAmount: dueAmount })).unwrap();
+            }
+
+            // 4. Limpiar UI
+            dispatch(clearCart());
+            setPaidAmount(0);
+            setSelectedCustomer('final');
+            setPaymentMethod('efectivo');
+            alert("Venta realizada con éxito");
+
+        } catch (error) {
+            console.error("Error en la venta:", error);
+            alert("Hubo un error al procesar la venta. Revise su conexión.");
+        } finally {
+            setIsProcessing(false);
         }
-        dispatch(clearCart());
-        setPaidAmount(0);
-        setSelectedCustomer('final');
-        setPaymentMethod('efectivo');
     };
 
     return (
         <div className="grid grid-cols-1 lg:grid-cols-10 gap-6 h-[calc(100vh-8rem)]">
-            {/* Columna Izquierda: Catálogo (Actualizado) */}
             <div className="lg:col-span-3 bg-white rounded-xl shadow-sm flex flex-col">
                 <div className="p-4 border-b">
                     <h2 className="text-lg font-bold text-slate-800">Búsqueda y Catálogo</h2>
@@ -134,25 +146,13 @@ const PointOfSale: React.FC = () => {
                 </div>
                 <div className="p-4 overflow-x-auto">
                     <div className="flex gap-2 mb-4 whitespace-nowrap">
-                        <button 
-                            onClick={() => setCategoryFilter('all')}
-                            className={`px-3 py-1 text-sm rounded-full transition-colors ${categoryFilter === 'all' ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
-                        >
-                            Todas
-                        </button>
+                        <button onClick={() => setCategoryFilter('all')} className={`px-3 py-1 text-sm rounded-full transition-colors ${categoryFilter === 'all' ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>Todas</button>
                         {uniqueCategories.map(cat => (
-                            <button 
-                                key={cat} 
-                                onClick={() => setCategoryFilter(cat)}
-                                className={`px-3 py-1 text-sm rounded-full transition-colors ${categoryFilter === cat ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
-                            >
-                                {cat}
-                            </button>
+                            <button key={cat} onClick={() => setCategoryFilter(cat)} className={`px-3 py-1 text-sm rounded-full transition-colors ${categoryFilter === cat ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>{cat}</button>
                         ))}
                     </div>
                 </div>
                 <div className="flex-1 overflow-y-auto p-4 space-y-2">
-                    {/* 4. Mostrar el precio correcto en la lista de productos */}
                     {filteredProducts.map(product => (
                         <div key={product.id} onClick={() => dispatchAddToCart(product)} className="p-3 border rounded-lg flex justify-between items-center hover:bg-blue-50 cursor-pointer transition">
                             <div>
@@ -165,7 +165,6 @@ const PointOfSale: React.FC = () => {
                 </div>
             </div>
 
-            {/* Columna Central: Carrito (Actualizado) */}
             <div className="lg:col-span-4 bg-white rounded-xl shadow-sm flex flex-col">
                 <div className="p-4 border-b">
                     <h2 className="text-lg font-bold text-slate-800">Carrito de Compra</h2>
@@ -185,7 +184,6 @@ const PointOfSale: React.FC = () => {
                         <div className="text-center text-slate-500 pt-10">El carrito está vacío</div>
                     ) : (
                         <div className="space-y-3">
-                            {/* 5. Mostrar el precio correcto en el carrito */}
                             {cart.map(item => {
                                 const price = getPrice(item);
                                 return (
@@ -205,7 +203,6 @@ const PointOfSale: React.FC = () => {
                         </div>
                     )}
                 </div>
-                {/* 6. Cálculo de Subtotal y Total (ya está actualizado) */}
                 <div className="p-4 border-t bg-slate-50 rounded-b-xl">
                     <div className="space-y-2 text-sm">
                         <div className="flex justify-between">
@@ -228,7 +225,6 @@ const PointOfSale: React.FC = () => {
                 </div>
             </div>
 
-            {/* Columna Derecha: Pago (sin cambios) */}
             <div className="lg:col-span-3 bg-white rounded-xl shadow-sm flex flex-col">
                 <div className="p-4 border-b">
                     <h2 className="text-lg font-bold text-slate-800">Finalización y Métodos de Pago</h2>
@@ -265,10 +261,10 @@ const PointOfSale: React.FC = () => {
                     <button 
                         onClick={handleFinalizeSale}
                         className="w-full flex items-center justify-center gap-2 bg-green-600 text-white font-bold py-4 rounded-lg hover:bg-green-700 transition shadow-sm disabled:bg-slate-300" 
-                        disabled={cart.length === 0}
+                        disabled={cart.length === 0 || isProcessing}
                     >
                         <CheckCircleIcon className="w-6 h-6" />
-                        Finalizar Venta
+                        {isProcessing ? 'Procesando...' : 'Finalizar Venta'}
                     </button>
                 </div>
             </div>
