@@ -1,7 +1,9 @@
-import React, { useState, useEffect } from 'react'; // Importar useEffect
-import { useDispatch } from 'react-redux'; // Importar useDispatch
-import { AppDispatch } from './store'; // Importar AppDispatch
-import { fetchProducts } from './store/productsSlice'; // Importar la acción de carga
+import React, { useState, useEffect } from 'react';
+import { useDispatch } from 'react-redux';
+import { AppDispatch } from './store';
+import { fetchProducts } from './store/productsSlice';
+import { fetchCustomers } from './store/customersSlice'; // NUEVO
+import { fetchSales } from './store/salesSlice'; // NUEVO
 
 import Sidebar from './components/Sidebar';
 import Dashboard from './components/Dashboard';
@@ -21,13 +23,13 @@ const App: React.FC = () => {
   const [activeView, setActiveView] = useState<ViewType>('dashboard');
   const [isSidebarOpen, setSidebarOpen] = useState(false);
   
-  // Inicializar el dispatch
   const dispatch = useDispatch<AppDispatch>();
 
-  // Cargar datos iniciales
   useEffect(() => {
+    // Cargar todos los datos principales al iniciar
     dispatch(fetchProducts());
-    // Aquí añadiremos fetchCustomers(), fetchSuppliers(), etc. en las siguientes partes
+    dispatch(fetchCustomers());
+    dispatch(fetchSales());
   }, [dispatch]);
 
   const renderView = () => {
