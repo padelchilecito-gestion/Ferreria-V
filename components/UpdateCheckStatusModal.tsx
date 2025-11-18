@@ -1,4 +1,3 @@
-// components/UpdateCheckStatusModal.tsx
 import React, { useState, useEffect } from 'react';
 import { useDispatch } from 'react-redux';
 import { AppDispatch } from '../store';
@@ -15,6 +14,7 @@ interface UpdateCheckStatusModalProps {
 const UpdateCheckStatusModal: React.FC<UpdateCheckStatusModalProps> = ({ isOpen, onClose, check }) => {
   const dispatch = useDispatch<AppDispatch>();
   const [status, setStatus] = useState<Check['status']>('En cartera');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     if (check) {
@@ -22,12 +22,19 @@ const UpdateCheckStatusModal: React.FC<UpdateCheckStatusModalProps> = ({ isOpen,
     }
   }, [check, isOpen]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!check) return;
+    setIsSubmitting(true);
 
-    dispatch(updateCheckStatus({ id: check.id, status }));
-    onClose();
+    try {
+        await dispatch(updateCheckStatus({ id: check.id, status })).unwrap();
+        onClose();
+    } catch (error) {
+        alert("Error al actualizar el estado: " + error);
+    } finally {
+        setIsSubmitting(false);
+    }
   };
 
   if (!isOpen || !check) {
@@ -77,14 +84,16 @@ const UpdateCheckStatusModal: React.FC<UpdateCheckStatusModalProps> = ({ isOpen,
               type="button"
               onClick={onClose}
               className="px-4 py-2 bg-white border border-slate-300 rounded-lg text-slate-700 hover:bg-slate-50"
+              disabled={isSubmitting}
             >
               Cancelar
             </button>
             <button
               type="submit"
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-blue-400"
+              disabled={isSubmitting}
             >
-              Actualizar Estado
+              {isSubmitting ? 'Actualizando...' : 'Actualizar Estado'}
             </button>
           </div>
         </form>
