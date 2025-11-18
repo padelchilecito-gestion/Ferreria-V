@@ -1,13 +1,14 @@
-// components/Checks.tsx
-import React, { useState, useEffect } from 'react'; // 1. Importar useEffect
+import React, { useState, useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState, AppDispatch } from '../store';
 import { Check } from '../types';
-import { PlusIcon, PencilIcon } from './Icons';
+// 1. Importamos TrashIcon
+import { PlusIcon, PencilIcon, TrashIcon } from './Icons';
 import AddCheckModal from './AddCheckModal';
 import UpdateCheckStatusModal from './UpdateCheckStatusModal';
+// 2. Importamos la acción de eliminar
+import { deleteCheck } from '../store/checksSlice';
 
-// 2. Definir items por página
 const ITEMS_PER_PAGE = 10;
 
 const StatusBadge: React.FC<{ status: Check['status'] }> = ({ status }) => {
@@ -29,7 +30,6 @@ const Checks: React.FC = () => {
     const [startDateFilter, setStartDateFilter] = useState('');
     const [endDateFilter, setEndDateFilter] = useState('');
 
-    // 3. Estado para paginación
     const [currentPage, setCurrentPage] = useState(1);
 
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -41,6 +41,18 @@ const Checks: React.FC = () => {
         setIsUpdateModalOpen(true);
     };
 
+    // 3. Función para manejar la eliminación
+    const handleDelete = async (id: string, number: string) => {
+        if (window.confirm(`¿Está seguro de que desea eliminar el cheque N° ${number}? Esta acción no se puede deshacer.`)) {
+            try {
+                await dispatch(deleteCheck(id)).unwrap();
+            } catch (error) {
+                alert("Hubo un error al eliminar el cheque.");
+                console.error(error);
+            }
+        }
+    };
+
     const filteredChecks = checks.filter(c => {
         const matchesSearch = c.issuer.toLowerCase().includes(searchTerm.toLowerCase()) || 
                               c.number.toLowerCase().includes(searchTerm.toLowerCase());
@@ -50,7 +62,6 @@ const Checks: React.FC = () => {
         return matchesSearch && matchesStatus && matchesStartDate && matchesEndDate;
     });
 
-    // 4. Lógica de paginación
     const totalPages = Math.ceil(filteredChecks.length / ITEMS_PER_PAGE);
     const paginatedChecks = filteredChecks.slice(
         (currentPage - 1) * ITEMS_PER_PAGE,
@@ -63,7 +74,6 @@ const Checks: React.FC = () => {
         }
     };
 
-    // 5. Resetear página a 1 cuando cambian los filtros
     useEffect(() => {
         setCurrentPage(1);
     }, [searchTerm, statusFilter, startDateFilter, endDateFilter]);
@@ -132,11 +142,10 @@ const Checks: React.FC = () => {
                                     <th className="px-4 py-3">Fecha de Cobro</th>
                                     <th className="px-4 py-3">Importe</th>
                                     <th className="px-4 py-3">Estado</th>
-                                    <th className="px-4 py-3">Acciones</th>
+                                    <th className="px-4 py-3 text-center">Acciones</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {/* 6. Mapear sobre paginatedChecks */}
                                 {paginatedChecks.map(check => (
                                     <tr key={check.id} className="border-b border-slate-100 hover:bg-slate-50">
                                         <td className="px-4 py-3 font-medium text-slate-700">{check.bank}</td>
@@ -147,13 +156,23 @@ const Checks: React.FC = () => {
                                         <td className="px-4 py-3 font-semibold text-slate-800">${check.amount.toLocaleString('es-AR')}</td>
                                         <td className="px-4 py-3"><StatusBadge status={check.status} /></td>
                                         <td className="px-4 py-3 text-center">
-                                            <button 
-                                                onClick={() => handleUpdateStatus(check)}
-                                                className="text-blue-600 hover:text-blue-800 px-2"
-                                                aria-label={`Actualizar estado de cheque ${check.number}`}
-                                            >
-                                                <PencilIcon className="w-4 h-4 inline-block" />
-                                            </button>
+                                            <div className="flex justify-center gap-2">
+                                                <button 
+                                                    onClick={() => handleUpdateStatus(check)}
+                                                    className="text-blue-600 hover:text-blue-800"
+                                                    title="Actualizar Estado"
+                                                >
+                                                    <PencilIcon className="w-5 h-5" />
+                                                </button>
+                                                {/* 4. Botón de eliminar */}
+                                                <button 
+                                                    onClick={() => handleDelete(check.id, check.number)}
+                                                    className="text-red-500 hover:text-red-700"
+                                                    title="Eliminar Cheque"
+                                                >
+                                                    <TrashIcon className="w-5 h-5" />
+                                                </button>
+                                            </div>
                                         </td>
                                     </tr>
                                 ))}
@@ -161,7 +180,6 @@ const Checks: React.FC = () => {
                         </table>
                     </div>
 
-                    {/* 7. Controles de Paginación */}
                     <div className="flex justify-between items-center mt-4 text-sm">
                         <span className="text-slate-600">
                             Mostrando {Math.min((currentPage - 1) * ITEMS_PER_PAGE + 1, filteredChecks.length) || 0} - {Math.min(currentPage * ITEMS_PER_PAGE, filteredChecks.length)} de {filteredChecks.length} cheques
