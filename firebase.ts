@@ -3,12 +3,13 @@ import { getFirestore } from "firebase/firestore";
 
 // REEMPLAZA ESTE OBJETO CON TU CONFIGURACIÓN REAL DE FIREBASE
 const firebaseConfig = {
-  apiKey: "TU_API_KEY",
-  authDomain: "TU_PROYECTO.firebaseapp.com",
-  projectId: "TU_PROJECT_ID",
-  storageBucket: "TU_PROYECTO.appspot.com",
-  messagingSenderId: "TU_SENDER_ID",
-  appId: "TU_APP_ID"
+  apiKey: "AIzaSyDOdfaEbl3wfMd3ysAEqmHaWsKuEe4WSXo",
+  authDomain: "ferreria-v.firebaseapp.com",
+  projectId: "ferreria-v",
+  storageBucket: "ferreria-v.firebasestorage.app",
+  messagingSenderId: "343884858198",
+  appId: "1:343884858198:web:1bc47f2d5d74a0f0dc4cf7",
+  measurementId: "G-458BQ9JP5X"
 };
 
 const app = initializeApp(firebaseConfig);
