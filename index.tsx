@@ -4,7 +4,10 @@ import App from './App';
 import { Provider } from 'react-redux';
 import { store, persistor } from './store';
 import { PersistGate } from 'redux-persist/integration/react';
-import './index.css'; // <--- ¡ESTA LÍNEA ES LA CLAVE! ASEGÚRATE DE QUE EXISTA
+
+// --- ESTA LÍNEA ES LA MÁS IMPORTANTE AHORA ---
+import './index.css'; 
+// ---------------------------------------------
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {
