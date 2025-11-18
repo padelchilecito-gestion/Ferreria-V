@@ -22,6 +22,7 @@ export const fetchChecks = createAsyncThunk('checks/fetchChecks', async () => {
   querySnapshot.forEach((doc) => {
     checks.push({ id: doc.id, ...doc.data() } as Check);
   });
+  // Ordenar por fecha de vencimiento (más próximos primero)
   return checks.sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
 });
 
@@ -31,17 +32,17 @@ export const addCheck = createAsyncThunk('checks/addCheck', async (newCheck: Omi
   return { id: docRef.id, ...newCheck } as Check;
 });
 
-// 3. Actualizar Estado
+// 3. Actualizar Estado de Cheque
 export const updateCheckStatus = createAsyncThunk('checks/updateCheckStatus', async ({ id, status }: { id: string; status: Check['status'] }) => {
     const checkRef = doc(db, "checks", id);
     await updateDoc(checkRef, { status });
     return { id, status };
 });
 
-// 4. Eliminar Cheque (ESTA ES LA FUNCIÓN QUE NECESITAS)
+// 4. Eliminar Cheque (NUEVO)
 export const deleteCheck = createAsyncThunk('checks/deleteCheck', async (id: string) => {
     await deleteDoc(doc(db, "checks", id));
-    return id; // Devolvemos el ID para saber cuál borrar del estado local
+    return id; // Devolvemos el ID para saber cuál borrar de la lista local
 });
 
 export const checksSlice = createSlice({
@@ -61,7 +62,6 @@ export const checksSlice = createSlice({
         const check = state.checks.find(c => c.id === action.payload.id);
         if (check) check.status = action.payload.status;
       })
-      // Manejo de la eliminación en el estado local
       .addCase(deleteCheck.fulfilled, (state, action) => {
         state.checks = state.checks.filter(c => c.id !== action.payload);
       });
