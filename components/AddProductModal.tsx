@@ -1,10 +1,9 @@
-// components/AddProductModal.tsx
 import React, { useState } from 'react';
 import { useDispatch } from 'react-redux';
-import { nanoid } from 'nanoid';
+// import { nanoid } from 'nanoid'; // YA NO ES NECESARIO
 import { AppDispatch } from '../store';
 import { addProduct } from '../store/productsSlice';
-import { Product } from '../types';
+// import { Product } from '../types'; // Ya no usamos Product directamente para crear, sino Omit<Product, 'id'>
 import { XIcon } from './Icons';
 
 interface AddProductModalProps {
@@ -15,7 +14,6 @@ interface AddProductModalProps {
 const AddProductModal: React.FC<AddProductModalProps> = ({ isOpen, onClose }) => {
   const dispatch = useDispatch<AppDispatch>();
   
-  // Estado local para todos los campos del producto
   const [name, setName] = useState('');
   const [sku, setSku] = useState('');
   const [category, setCategory] = useState('');
@@ -24,14 +22,15 @@ const AddProductModal: React.FC<AddProductModalProps> = ({ isOpen, onClose }) =>
   const [minStock, setMinStock] = useState(0);
   const [costPrice, setCostPrice] = useState(0);
   const [retailPrice, setRetailPrice] = useState(0);
-  // 1. Añadir estado para precio mayorista
   const [wholesalePrice, setWholesalePrice] = useState(0);
+  const [isSubmitting, setIsSubmitting] = useState(false); // Estado de carga local
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsSubmitting(true);
     
-    const newProduct: Product = {
-      id: nanoid(),
+    // Creamos el objeto SIN ID (Firebase lo crea)
+    const newProductData = {
       name,
       sku,
       category,
@@ -40,22 +39,29 @@ const AddProductModal: React.FC<AddProductModalProps> = ({ isOpen, onClose }) =>
       minStock: Number(minStock) || 0,
       costPrice: Number(costPrice) || 0,
       retailPrice: Number(retailPrice) || 0,
-      wholesalePrice: Number(wholesalePrice) || Number(retailPrice), // 2. Añadir. Si es 0, usa el minorista.
+      wholesalePrice: Number(wholesalePrice) || Number(retailPrice),
     };
 
-    dispatch(addProduct(newProduct));
-    
-    // 3. Limpiar formulario y cerrar
-    onClose();
-    setName('');
-    setSku('');
-    setCategory('');
-    setSupplier('');
-    setStock(0);
-    setMinStock(0);
-    setCostPrice(0);
-    setRetailPrice(0);
-    setWholesalePrice(0); // 4. Resetear estado
+    try {
+      // Esperamos a que Firebase confirme el guardado
+      await dispatch(addProduct(newProductData)).unwrap();
+      
+      // Limpiar y cerrar
+      onClose();
+      setName('');
+      setSku('');
+      setCategory('');
+      setSupplier('');
+      setStock(0);
+      setMinStock(0);
+      setCostPrice(0);
+      setRetailPrice(0);
+      setWholesalePrice(0);
+    } catch (error) {
+      alert("Error al guardar el producto: " + error);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   if (!isOpen) {
@@ -145,7 +151,6 @@ const AddProductModal: React.FC<AddProductModalProps> = ({ isOpen, onClose }) =>
               </div>
             </div>
 
-            {/* 5. Añadir campo de Precio Mayorista */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <label className="text-sm font-medium text-slate-600">Precio de Costo</label>
@@ -189,14 +194,16 @@ const AddProductModal: React.FC<AddProductModalProps> = ({ isOpen, onClose }) =>
               type="button"
               onClick={onClose}
               className="px-4 py-2 bg-white border border-slate-300 rounded-lg text-slate-700 hover:bg-slate-50"
+              disabled={isSubmitting}
             >
               Cancelar
             </button>
             <button
               type="submit"
-              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-green-400"
+              disabled={isSubmitting}
             >
-              Guardar Producto
+              {isSubmitting ? 'Guardando...' : 'Guardar Producto'}
             </button>
           </div>
         </form>
