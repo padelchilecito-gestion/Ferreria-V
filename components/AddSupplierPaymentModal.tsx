@@ -1,8 +1,10 @@
-import React, { useState, useEffect } from 'react';
-import { useDispatch } from 'react-redux';
-import { AppDispatch } from '../store';
+import React, { useState, useEffect, useMemo } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
+import { AppDispatch, RootState } from '../store';
 import { addSupplierPayment } from '../store/suppliersSlice';
-import { Supplier } from '../types';
+import { updateCheckStatus } from '../store/checksSlice'; // Necesitamos esto para marcar los cheques
+import { selectAllChecks } from '../store/selectors';
+import { Supplier, Check } from '../types';
 import { XIcon, CurrencyDollarIcon } from './Icons';
 
 interface AddSupplierPaymentModalProps {
@@ -13,35 +15,70 @@ interface AddSupplierPaymentModalProps {
 
 const AddSupplierPaymentModal: React.FC<AddSupplierPaymentModalProps> = ({ isOpen, onClose, supplier }) => {
   const dispatch = useDispatch<AppDispatch>();
-  const [amount, setAmount] = useState(0);
+  const allChecks = useSelector(selectAllChecks);
+
+  // Estado para el monto en efectivo/transferencia
+  const [cashAmount, setCashAmount] = useState(0);
+  // Estado para los IDs de los cheques seleccionados
+  const [selectedCheckIds, setSelectedCheckIds] = useState<string[]>([]);
   const [note, setNote] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Filtrar solo los cheques disponibles
+  const availableChecks = useMemo(() => {
+    return allChecks.filter(c => c.status === 'En cartera');
+  }, [allChecks]);
+
+  // Calcular el monto total de los cheques seleccionados
+  const checksTotalAmount = useMemo(() => {
+    return selectedCheckIds.reduce((total, id) => {
+        const check = availableChecks.find(c => c.id === id);
+        return total + (check ? check.amount : 0);
+    }, 0);
+  }, [selectedCheckIds, availableChecks]);
+
+  // Monto total del pago (Efectivo + Cheques)
+  const totalPayment = Number(cashAmount) + checksTotalAmount;
+
   useEffect(() => {
-    if (supplier && supplier.balance > 0) {
-      setAmount(supplier.balance);
-    } else {
-      setAmount(0);
+    if (!isOpen) {
+        // Resetear formulario al cerrar
+        setCashAmount(0);
+        setSelectedCheckIds([]);
+        setNote('');
     }
-    setNote('');
-  }, [supplier, isOpen]);
+  }, [isOpen]);
+
+  const handleCheckToggle = (checkId: string) => {
+      setSelectedCheckIds(prev => 
+        prev.includes(checkId) 
+            ? prev.filter(id => id !== checkId) 
+            : [...prev, checkId]
+      );
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!supplier || Number(amount) <= 0) {
-        alert("Por favor ingrese un monto válido.");
+    if (!supplier || totalPayment <= 0) {
+        alert("El monto total del pago debe ser mayor a 0.");
         return;
     }
     setIsSubmitting(true);
 
     try {
+      // 1. Actualizar el estado de cada cheque utilizado
+      const checkPromises = selectedCheckIds.map(checkId => 
+          dispatch(updateCheckStatus({ id: checkId, status: 'Entregado' })).unwrap()
+      );
+      await Promise.all(checkPromises);
+
+      // 2. Registrar el pago total en la cuenta del proveedor (descuenta deuda)
       await dispatch(addSupplierPayment({
           supplierId: supplier.id, 
-          paymentAmount: Number(amount)
+          paymentAmount: totalPayment
       })).unwrap();
       
       onClose();
-      setAmount(0);
     } catch (error) {
       alert("Error al registrar el pago: " + error);
     } finally {
@@ -59,7 +96,7 @@ const AddSupplierPaymentModal: React.FC<AddSupplierPaymentModalProps> = ({ isOpe
       onClick={onClose}
     >
       <div 
-        className="bg-white w-full max-w-md rounded-xl shadow-lg"
+        className="bg-white w-full max-w-2xl rounded-xl shadow-lg flex flex-col max-h-[90vh]"
         onClick={e => e.stopPropagation()}
       >
         <div className="flex justify-between items-center p-4 border-b">
@@ -72,42 +109,108 @@ const AddSupplierPaymentModal: React.FC<AddSupplierPaymentModalProps> = ({ isOpe
           </button>
         </div>
 
-        <form onSubmit={handleSubmit}>
-          <div className="p-6 space-y-4">
-            <div>
-              <label className="text-sm font-medium text-slate-600">Proveedor</label>
-              <p className="font-semibold text-slate-800 text-lg">{supplier.name}</p>
+        <form onSubmit={handleSubmit} className="flex-1 overflow-hidden flex flex-col">
+          <div className="p-6 space-y-6 overflow-y-auto">
+            
+            {/* Encabezado con saldo */}
+            <div className="flex justify-between items-center bg-slate-50 p-4 rounded-lg border border-slate-200">
+                <div>
+                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">Proveedor</label>
+                    <p className="font-bold text-slate-800 text-lg">{supplier.name}</p>
+                </div>
+                <div className="text-right">
+                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">Saldo Actual (Deuda)</label>
+                    <p className="font-bold text-red-600 text-xl">${supplier.balance.toFixed(2)}</p>
+                </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="text-sm font-medium text-slate-600">Saldo Actual (Deuda)</label>
-                <div className="mt-1 p-2 border border-slate-300 rounded-lg bg-slate-50 text-red-600 font-bold">
-                  ${supplier.balance.toFixed(2)}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Columna Izquierda: Efectivo y Nota */}
+                <div className="space-y-4">
+                    <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">Efectivo / Transferencia</label>
+                        <div className="relative">
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500">$</span>
+                            <input
+                                type="number"
+                                step="0.01"
+                                value={cashAmount === 0 ? '' : cashAmount}
+                                onChange={e => setCashAmount(Number(e.target.value))}
+                                className="w-full pl-7 p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                                placeholder="0.00"
+                            />
+                        </div>
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">Nota / Comprobante (Opcional)</label>
+                        <textarea
+                            value={note}
+                            onChange={e => setNote(e.target.value)}
+                            className="w-full p-2 border border-slate-300 rounded-lg h-24 resize-none focus:ring-2 focus:ring-blue-500 outline-none"
+                            placeholder="Ej: Pago factura #123..."
+                        />
+                    </div>
                 </div>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-slate-600">Monto a Pagar ($)</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  value={amount}
-                  onChange={e => setAmount(Number(e.target.value))}
-                  className="w-full mt-1 p-2 border border-slate-300 rounded-lg"
-                  required
-                  max={supplier.balance > 0 ? supplier.balance : undefined}
-                />
-              </div>
+
+                {/* Columna Derecha: Selección de Cheques */}
+                <div className="border border-slate-200 rounded-lg flex flex-col h-64">
+                    <div className="p-3 border-b bg-slate-50 font-medium text-slate-700 text-sm flex justify-between items-center">
+                        <span>Cheques en Cartera</span>
+                        <span className="bg-blue-100 text-blue-800 text-xs px-2 py-0.5 rounded-full">{availableChecks.length} disp.</span>
+                    </div>
+                    <div className="overflow-y-auto flex-1 p-2 space-y-2">
+                        {availableChecks.length === 0 ? (
+                            <p className="text-center text-slate-400 text-sm mt-10">No hay cheques en cartera.</p>
+                        ) : (
+                            availableChecks.map(check => (
+                                <label 
+                                    key={check.id} 
+                                    className={`flex items-start gap-3 p-3 border rounded-lg cursor-pointer transition-colors ${selectedCheckIds.includes(check.id) ? 'bg-blue-50 border-blue-300' : 'hover:bg-slate-50 border-slate-200'}`}
+                                >
+                                    <input 
+                                        type="checkbox" 
+                                        className="mt-1"
+                                        checked={selectedCheckIds.includes(check.id)}
+                                        onChange={() => handleCheckToggle(check.id)}
+                                    />
+                                    <div className="flex-1 min-w-0">
+                                        <div className="flex justify-between items-center">
+                                            <p className="font-bold text-slate-700 text-sm">${check.amount.toLocaleString('es-AR')}</p>
+                                            <span className="text-xs text-slate-500">{check.dueDate}</span>
+                                        </div>
+                                        <p className="text-xs text-slate-600 truncate">{check.bank} - N° {check.number}</p>
+                                        <p className="text-xs text-slate-400 truncate">De: {check.issuer}</p>
+                                    </div>
+                                </label>
+                            ))
+                        )}
+                    </div>
+                </div>
             </div>
-             <div>
-                <label className="text-sm font-medium text-slate-600">Nota / N° Comprobante (Opcional)</label>
-                <input
-                  type="text"
-                  value={note}
-                  onChange={e => setNote(e.target.value)}
-                  className="w-full mt-1 p-2 border border-slate-300 rounded-lg"
-                />
+
+            {/* Resumen de Totales */}
+            <div className="border-t border-slate-200 pt-4 mt-2">
+                <div className="flex justify-end gap-8 text-sm">
+                    <div className="text-right">
+                        <p className="text-slate-500">Efectivo</p>
+                        <p className="font-medium text-slate-700">${cashAmount.toLocaleString('es-AR', {minimumFractionDigits: 2})}</p>
+                    </div>
+                    <div className="text-right">
+                        <p className="text-slate-500">Cheques ({selectedCheckIds.length})</p>
+                        <p className="font-medium text-slate-700">${checksTotalAmount.toLocaleString('es-AR', {minimumFractionDigits: 2})}</p>
+                    </div>
+                    <div className="text-right pl-8 border-l">
+                        <p className="text-slate-500 font-bold">TOTAL A PAGAR</p>
+                        <p className="font-bold text-green-600 text-xl">${totalPayment.toLocaleString('es-AR', {minimumFractionDigits: 2})}</p>
+                    </div>
+                </div>
+                {totalPayment > supplier.balance && (
+                    <p className="text-right text-xs text-amber-600 mt-2 font-medium">
+                        ⚠️ El monto supera la deuda actual. El proveedor quedará con saldo a favor.
+                    </p>
+                )}
             </div>
+
           </div>
 
           <div className="p-4 border-t bg-slate-50 rounded-b-xl flex justify-end gap-3">
@@ -121,10 +224,10 @@ const AddSupplierPaymentModal: React.FC<AddSupplierPaymentModalProps> = ({ isOpe
             </button>
             <button
               type="submit"
-              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-green-400"
+              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-green-400 shadow-sm"
               disabled={isSubmitting}
             >
-              {isSubmitting ? 'Procesando...' : 'Guardar Pago'}
+              {isSubmitting ? 'Procesando...' : 'Confirmar Pago'}
             </button>
           </div>
         </form>
