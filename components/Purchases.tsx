@@ -121,6 +121,7 @@ const Purchases: React.FC = () => {
                                     <th className="px-4 py-3">N° Factura</th>
                                     <th className="px-4 py-3">Proveedor</th>
                                     <th className="px-4 py-3">Items</th>
+                                    <th className="px-4 py-3">Flete</th>
                                     <th className="px-4 py-3">Total</th>
                                     <th className="px-4 py-3">Estado</th>
                                     <th className="px-4 py-3">Acciones</th>
@@ -133,6 +134,7 @@ const Purchases: React.FC = () => {
                                         <td className="px-4 py-3 font-medium text-slate-700">{purchase.invoiceNumber}</td>
                                         <td className="px-4 py-3 text-slate-700">{purchase.supplierName}</td>
                                         <td className="px-4 py-3 text-slate-600">{purchase.items.length}</td>
+                                        <td className="px-4 py-3 text-slate-600">${(purchase.freightCost || 0).toLocaleString('es-AR', { minimumFractionDigits: 2 })}</td>
                                         <td className="px-4 py-3 font-semibold text-slate-800">${purchase.total.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                                         <td className="px-4 py-3"><StatusBadge status={purchase.status} /></td>
                                         <td className="px-4 py-3 text-left whitespace-nowrap">
