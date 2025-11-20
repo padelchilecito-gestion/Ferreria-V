@@ -8,7 +8,7 @@ export interface Product {
   minStock: number;
   costPrice: number;
   retailPrice: number;
-  wholesalePrice: number; // <-- NUEVO CAMPO
+  wholesalePrice: number;
   category: string;
 }
 
@@ -40,7 +40,8 @@ export interface Check {
     issueDate: string;
     dueDate: string;
     amount: number;
-    status: 'En cartera' | 'Depositado' | 'Cobrado' | 'Rechazado';
+    // Agregamos 'Entregado' para indicar que se usó para pagar
+    status: 'En cartera' | 'Depositado' | 'Cobrado' | 'Rechazado' | 'Entregado';
     issuer: string;
 }
 
