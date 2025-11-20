@@ -40,7 +40,6 @@ export interface Check {
     issueDate: string;
     dueDate: string;
     amount: number;
-    // Agregamos 'Entregado' para indicar que se usó para pagar
     status: 'En cartera' | 'Depositado' | 'Cobrado' | 'Rechazado' | 'Entregado';
     issuer: string;
 }
@@ -50,7 +49,6 @@ export interface CartItem extends Product {
 }
 
 export interface SaleItem extends CartItem {
-  // No necesita cambios, hereda 'wholesalePrice' de Product
 }
 
 export interface Sale {
@@ -81,6 +79,7 @@ export interface Purchase {
   supplierName: string;
   invoiceNumber: string;
   items: PurchaseItem[];
+  freightCost: number; // <-- NUEVO CAMPO: Costo de Flete
   total: number;
   status: 'Pendiente de pago' | 'Pagada';
 }
