@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
-// import { nanoid } from 'nanoid'; // Eliminado
 import { AppDispatch, RootState } from '../store';
 import { PurchaseItem } from '../types';
 import { addPurchase } from '../store/purchasesSlice';
@@ -24,6 +23,8 @@ const AddPurchaseModal: React.FC<AddPurchaseModalProps> = ({ isOpen, onClose }) 
   const [currentProductId, setCurrentProductId] = useState('');
   const [currentQuantity, setCurrentQuantity] = useState(1);
   const [currentCost, setCurrentCost] = useState(0);
+  // Estado para el flete
+  const [freightCost, setFreightCost] = useState(0); 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleClose = () => {
@@ -33,6 +34,7 @@ const AddPurchaseModal: React.FC<AddPurchaseModalProps> = ({ isOpen, onClose }) 
     setCurrentProductId('');
     setCurrentQuantity(1);
     setCurrentCost(0);
+    setFreightCost(0);
     onClose();
   };
 
@@ -66,7 +68,11 @@ const AddPurchaseModal: React.FC<AddPurchaseModalProps> = ({ isOpen, onClose }) 
     setItems(items.filter(i => i.productId !== productId));
   };
 
-  const totalPurchase = items.reduce((acc, item) => acc + (item.costPrice * item.quantity), 0);
+  // Calculamos el subtotal de los productos
+  const itemsSubtotal = items.reduce((acc, item) => acc + (item.costPrice * item.quantity), 0);
+  
+  // El total final incluye el flete
+  const totalPurchase = itemsSubtotal + Number(freightCost);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -91,6 +97,7 @@ const AddPurchaseModal: React.FC<AddPurchaseModalProps> = ({ isOpen, onClose }) 
         supplierName: supplier.name,
         invoiceNumber: invoiceNumber || 'S/N',
         items: items,
+        freightCost: Number(freightCost), // Guardamos el flete
         total: totalPurchase,
         status: 'Pendiente de pago' as const,
     };
@@ -109,7 +116,7 @@ const AddPurchaseModal: React.FC<AddPurchaseModalProps> = ({ isOpen, onClose }) 
         );
         await Promise.all(stockPromises);
 
-        // 3. Actualizar deuda del proveedor
+        // 3. Actualizar deuda del proveedor (incluyendo flete)
         await dispatch(updateSupplierBalance({
             supplierId: supplier.id,
             dueAmount: totalPurchase 
@@ -176,8 +183,9 @@ const AddPurchaseModal: React.FC<AddPurchaseModalProps> = ({ isOpen, onClose }) 
               </div>
             </div>
 
+            {/* Sección de Productos */}
             <div className="border border-slate-200 rounded-lg p-4 space-y-3">
-                <h3 className="font-semibold text-slate-700">Añadir Productos a la Compra</h3>
+                <h3 className="font-semibold text-slate-700">Añadir Productos</h3>
                 <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
                     <div className="md:col-span-5">
                         <label className="text-xs font-medium text-slate-600">Producto</label>
@@ -228,8 +236,9 @@ const AddPurchaseModal: React.FC<AddPurchaseModalProps> = ({ isOpen, onClose }) 
                 </div>
             </div>
 
+            {/* Lista de Items */}
             <div className="space-y-2">
-                <h3 className="font-semibold text-slate-700">Items en la Compra</h3>
+                <h3 className="font-semibold text-slate-700">Detalle de Compra</h3>
                 {items.length === 0 ? (
                     <p className="text-sm text-slate-500 text-center py-4">Aún no hay productos en la compra.</p>
                 ) : (
@@ -266,10 +275,30 @@ const AddPurchaseModal: React.FC<AddPurchaseModalProps> = ({ isOpen, onClose }) 
                 )}
             </div>
 
-            <div className="flex justify-end mt-4">
-                <div className="text-right">
-                    <span className="text-sm text-slate-600">TOTAL DE LA COMPRA</span>
-                    <p className="text-2xl font-bold text-slate-800">${totalPurchase.toFixed(2)}</p>
+            {/* Costos Adicionales y Total */}
+            <div className="border-t pt-4 mt-4">
+                <div className="flex flex-col gap-3 items-end">
+                    <div className="w-full md:w-1/3 flex justify-between items-center">
+                        <span className="text-sm text-slate-600">Subtotal Productos:</span>
+                        <span className="font-medium">${itemsSubtotal.toFixed(2)}</span>
+                    </div>
+                    
+                    <div className="w-full md:w-1/3 flex justify-between items-center">
+                        <label className="text-sm font-medium text-slate-700">Costo de Flete:</label>
+                        <input
+                            type="number"
+                            step="0.01"
+                            value={freightCost === 0 ? '' : freightCost}
+                            onChange={e => setFreightCost(Number(e.target.value))}
+                            className="w-28 p-1 border border-slate-300 rounded-lg text-right text-sm"
+                            placeholder="0.00"
+                        />
+                    </div>
+
+                    <div className="w-full md:w-1/3 flex justify-between items-center pt-2 border-t border-slate-100">
+                        <span className="text-base font-bold text-slate-800">TOTAL A PAGAR:</span>
+                        <span className="text-xl font-bold text-blue-600">${totalPurchase.toFixed(2)}</span>
+                    </div>
                 </div>
             </div>
 
