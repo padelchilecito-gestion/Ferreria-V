@@ -12,7 +12,6 @@ export const mockProducts: Product[] = [
   { id: '8', sku: 'ELE-01234', name: 'Cinta Aislante Negra', supplier: '3M', stock: 150, minStock: 50, costPrice: 1.50, retailPrice: 2.50, wholesalePrice: 2.00, category: 'Electricidad' },
 ];
 
-// El resto de los mocks (customers, suppliers, checks, salesData) no cambian
 export const mockCustomers: Customer[] = [
     { id: '1', name: 'Constructora S.A.', cuit: '30-12345678-9', phone: '11-5555-1234', email: 'contacto@constructora.com', address: 'Av. Siempre Viva 742, Buenos Aires', accountStatus: 'Active', balance: 1250.75 },
     { id: '2', name: 'Juan Pérez', cuit: '20-98765432-1', phone: '11-5555-5678', email: 'juan.perez@email.com', address: 'Calle Falsa 123, Córdoba', accountStatus: 'Active', balance: 2540.50 },
