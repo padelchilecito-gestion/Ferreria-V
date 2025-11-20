@@ -1,22 +1,35 @@
 import React, { useState, useMemo } from 'react';
 import { Product, Sale } from '../types';
-import { SearchIcon, TrashIcon, CheckCircleIcon } from './Icons';
+import { SearchIcon, TrashIcon, CheckCircleIcon, CreditCardIcon } from './Icons';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState, AppDispatch } from '../store';
 import { addToCart, updateQuantity, removeFromCart, clearCart } from '../store/cartSlice';
 import { reduceStock } from '../store/productsSlice';
-// import { nanoid } from 'nanoid'; // Eliminado
 import { addSale } from '../store/salesSlice';
 import { updateCustomerBalance } from '../store/customersSlice';
+
+// --- CONFIGURACIÓN DE TARJETAS (MOCK) ---
+// Esto simula la "inteligencia" del sistema sobre qué tarjetas acepta y sus condiciones
+const CREDIT_CARD_PLANS = [
+    { id: 'visa-1', name: 'Visa - 1 pago', installments: 1, interest: 0, accreditationDays: 10 },
+    { id: 'visa-3', name: 'Visa - 3 cuotas', installments: 3, interest: 0.15, accreditationDays: 2 }, // 15% interés
+    { id: 'visa-6', name: 'Visa - 6 cuotas', installments: 6, interest: 0.30, accreditationDays: 5 },
+    { id: 'master-1', name: 'Mastercard - 1 pago', installments: 1, interest: 0, accreditationDays: 10 },
+    { id: 'master-3', name: 'Mastercard - 3 cuotas', installments: 3, interest: 0.15, accreditationDays: 2 },
+    { id: 'amex-1', name: 'Amex - 1 pago', installments: 1, interest: 0.05, accreditationDays: 15 },
+];
 
 const PointOfSale: React.FC = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedCustomer, setSelectedCustomer] = useState<string>('final');
     const [priceType, setPriceType] = useState<'retail' | 'wholesale'>('retail');
-    const [paymentMethod, setPaymentMethod] = useState<'efectivo' | 'debito' | 'cheque' | 'cuenta corriente'>('efectivo');
+    const [paymentMethod, setPaymentMethod] = useState<'efectivo' | 'debito' | 'cheque' | 'cuenta corriente' | 'credito'>('efectivo');
     const [paidAmount, setPaidAmount] = useState(0);
     const [categoryFilter, setCategoryFilter] = useState('all');
-    const [isProcessing, setIsProcessing] = useState(false); // Estado para deshabilitar botón mientras guarda
+    const [isProcessing, setIsProcessing] = useState(false);
+    
+    // Estado para la tarjeta seleccionada
+    const [selectedCardPlanId, setSelectedCardPlanId] = useState(CREDIT_CARD_PLANS[0].id);
 
     const dispatch = useDispatch<AppDispatch>();
     const cart = useSelector((state: RootState) => state.cart.items);
@@ -62,12 +75,29 @@ const PointOfSale: React.FC = () => {
     }, 0);
     
     const tax = subtotal * taxRate;
-    const total = subtotal + tax;
+    const baseTotal = subtotal + tax;
+    
+    // Cálculos específicos de tarjeta
+    let surcharge = 0;
+    let accreditationText = '';
+    let installmentAmount = 0;
+
+    if (paymentMethod === 'credito') {
+        const plan = CREDIT_CARD_PLANS.find(p => p.id === selectedCardPlanId);
+        if (plan) {
+            surcharge = baseTotal * plan.interest;
+            const finalCardTotal = baseTotal + surcharge;
+            installmentAmount = finalCardTotal / plan.installments;
+            accreditationText = `Se acredita en ${plan.accreditationDays} días hábiles`;
+        }
+    }
+
+    const total = baseTotal + surcharge;
     
     const getPaidAmount = () => {
         switch(paymentMethod) {
             case 'efectivo': return paidAmount;
-            case 'debito': case 'cheque': return total;
+            case 'debito': case 'cheque': case 'credito': return total;
             case 'cuenta corriente': return 0;
             default: return 0;
         }
@@ -99,21 +129,17 @@ const PointOfSale: React.FC = () => {
         };
 
         try {
-            // 1. Guardar Venta (Async)
             await dispatch(addSale(newSaleData)).unwrap();
 
-            // 2. Reducir Stock (Async) - Disparamos todas las promesas en paralelo
             const stockPromises = cart.map(item => 
                 dispatch(reduceStock({ id: item.id, quantity: item.quantity })).unwrap()
             );
             await Promise.all(stockPromises);
 
-            // 3. Actualizar Deuda Cliente (Async) si aplica
             if (selectedCustomer !== 'final' && dueAmount !== 0) {
                 await dispatch(updateCustomerBalance({ customerId: selectedCustomer, dueAmount: dueAmount })).unwrap();
             }
 
-            // 4. Limpiar UI
             dispatch(clearCart());
             setPaidAmount(0);
             setSelectedCustomer('final');
@@ -210,13 +236,15 @@ const PointOfSale: React.FC = () => {
                             <span className="font-medium text-slate-800">${subtotal.toFixed(2)}</span>
                         </div>
                          <div className="flex justify-between">
-                            <span className="text-slate-600">Descuento</span>
-                            <span className="font-medium text-slate-800">$0.00</span>
-                        </div>
-                         <div className="flex justify-between">
                             <span className="text-slate-600">IVA ({(taxRate * 100).toFixed(0)}%)</span>
                             <span className="font-medium text-slate-800">${tax.toFixed(2)}</span>
                         </div>
+                         {paymentMethod === 'credito' && (
+                            <div className="flex justify-between text-blue-600">
+                                <span className="">Recargo Tarjeta</span>
+                                <span className="font-medium">+ ${surcharge.toFixed(2)}</span>
+                            </div>
+                        )}
                         <div className="flex justify-between text-lg font-bold border-t pt-2 mt-2">
                             <span className="text-slate-800">TOTAL</span>
                             <span className="text-blue-600">${total.toFixed(2)}</span>
@@ -230,18 +258,51 @@ const PointOfSale: React.FC = () => {
                     <h2 className="text-lg font-bold text-slate-800">Finalización y Métodos de Pago</h2>
                 </div>
                 <div className="p-4 space-y-3">
-                    {['efectivo', 'debito', 'cheque', 'cuenta corriente'].map(method => (
+                    {['efectivo', 'debito', 'cheque', 'credito', 'cuenta corriente'].map(method => (
                         <button 
                             key={method} 
                             onClick={() => setPaymentMethod(method as any)} 
-                            className={`w-full text-left p-4 border rounded-lg transition ${paymentMethod === method ? 'bg-blue-50 border-blue-500 ring-2 ring-blue-500' : 'bg-white border-slate-300'} ${method === 'cuenta corriente' && selectedCustomer === 'final' ? 'opacity-50 cursor-not-allowed' : ''}`}
+                            className={`w-full text-left p-4 border rounded-lg transition flex items-center gap-2 ${paymentMethod === method ? 'bg-blue-50 border-blue-500 ring-2 ring-blue-500' : 'bg-white border-slate-300'} ${method === 'cuenta corriente' && selectedCustomer === 'final' ? 'opacity-50 cursor-not-allowed' : ''}`}
                             disabled={method === 'cuenta corriente' && selectedCustomer === 'final'}
                         >
+                            {method === 'credito' && <CreditCardIcon className="w-5 h-5 text-slate-500" />}
                             {method.charAt(0).toUpperCase() + method.slice(1)}
                             {method === 'cuenta corriente' && selectedCustomer === 'final' && <span className="text-xs text-red-500 ml-2">(Solo clientes)</span>}
                         </button>
                     ))}
                 </div>
+
+                {/* SECCIÓN DE TARJETA DE CRÉDITO */}
+                {paymentMethod === 'credito' && (
+                    <div className="p-4 border-t bg-blue-50 space-y-3 animate-in fade-in">
+                        <label className="text-sm font-medium text-slate-700 block">Plan de Financiación</label>
+                        <select 
+                            value={selectedCardPlanId} 
+                            onChange={e => setSelectedCardPlanId(e.target.value)}
+                            className="w-full p-2 border border-blue-300 rounded-lg bg-white"
+                        >
+                            {CREDIT_CARD_PLANS.map(plan => (
+                                <option key={plan.id} value={plan.id}>
+                                    {plan.name} {plan.interest > 0 ? `(+${(plan.interest * 100).toFixed(0)}%)` : '(Sin interés)'}
+                                </option>
+                            ))}
+                        </select>
+                        
+                        <div className="text-sm text-slate-600 space-y-1 mt-2 p-2 bg-white rounded border border-blue-200">
+                            <div className="flex justify-between">
+                                <span>Cuotas:</span>
+                                <span className="font-bold">
+                                    {CREDIT_CARD_PLANS.find(p => p.id === selectedCardPlanId)?.installments} x ${installmentAmount.toFixed(2)}
+                                </span>
+                            </div>
+                            <div className="flex justify-between text-xs text-slate-500 pt-1 border-t border-slate-100">
+                                <span>Acreditación:</span>
+                                <span>{accreditationText}</span>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
                 {paymentMethod === 'efectivo' && (
                     <div className="p-4 border-t space-y-4">
                         <div>
