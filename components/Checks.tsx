@@ -2,11 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState, AppDispatch } from '../store';
 import { Check } from '../types';
-// Importamos TrashIcon
 import { PlusIcon, PencilIcon, TrashIcon } from './Icons';
 import AddCheckModal from './AddCheckModal';
 import UpdateCheckStatusModal from './UpdateCheckStatusModal';
-// Importamos la acción de eliminar
 import { deleteCheck } from '../store/checksSlice';
 
 const ITEMS_PER_PAGE = 10;
@@ -17,8 +15,9 @@ const StatusBadge: React.FC<{ status: Check['status'] }> = ({ status }) => {
         'Depositado': 'bg-indigo-100 text-indigo-800',
         'Cobrado': 'bg-green-100 text-green-800',
         'Rechazado': 'bg-red-100 text-red-800',
+        'Entregado': 'bg-gray-100 text-gray-800', // Nuevo estilo para cheques entregados
     };
-    return <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${styles[status]}`}>{status}</span>;
+    return <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${styles[status] || 'bg-gray-100'}`}>{status}</span>;
 };
 
 const Checks: React.FC = () => {
@@ -41,7 +40,6 @@ const Checks: React.FC = () => {
         setIsUpdateModalOpen(true);
     };
 
-    // Función para manejar la eliminación
     const handleDelete = async (id: string, number: string) => {
         if (window.confirm(`¿Está seguro de que desea eliminar el cheque N° ${number}? Esta acción no se puede deshacer.`)) {
             try {
@@ -106,6 +104,7 @@ const Checks: React.FC = () => {
                                 <option value="Depositado">Depositado</option>
                                 <option value="Cobrado">Cobrado</option>
                                 <option value="Rechazado">Rechazado</option>
+                                <option value="Entregado">Entregado</option>
                             </select>
                             <input 
                                 type="date" 
@@ -164,7 +163,6 @@ const Checks: React.FC = () => {
                                                 >
                                                     <PencilIcon className="w-5 h-5" />
                                                 </button>
-                                                {/* Botón de eliminar */}
                                                 <button 
                                                     onClick={() => handleDelete(check.id, check.number)}
                                                     className="text-red-500 hover:text-red-700"
