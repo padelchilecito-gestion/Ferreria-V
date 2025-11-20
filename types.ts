@@ -60,7 +60,8 @@ export interface Sale {
   subtotal: number;
   tax: number;
   total: number;
-  paymentMethod: 'efectivo' | 'debito' | 'cheque' | 'cuenta corriente';
+  // Agregamos 'credito' aquí
+  paymentMethod: 'efectivo' | 'debito' | 'cheque' | 'cuenta corriente' | 'credito';
   paidAmount: number;
   dueAmount: number;
 }
@@ -79,7 +80,7 @@ export interface Purchase {
   supplierName: string;
   invoiceNumber: string;
   items: PurchaseItem[];
-  freightCost: number; // <-- NUEVO CAMPO: Costo de Flete
+  freightCost: number;
   total: number;
   status: 'Pendiente de pago' | 'Pagada';
 }
