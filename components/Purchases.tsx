@@ -2,14 +2,13 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState, AppDispatch } from '../store';
-import { Purchase } from '../types';
-import { SearchIcon, CheckCircleIcon } from './Icons';
-import { updatePurchaseStatus } from '../store/purchasesSlice';
+import { Purchase, Supplier } from '../types';
+import { SearchIcon, CurrencyDollarIcon, CheckCircleIcon } from './Icons';
 import { selectAllPurchases, selectAllSuppliers } from '../store/selectors';
+import AddSupplierPaymentModal from './AddSupplierPaymentModal'; // Importamos el modal
 
 const ITEMS_PER_PAGE = 10;
 
-// Badge para el estado de la factura
 const StatusBadge: React.FC<{ status: Purchase['status'] }> = ({ status }) => {
     const styles = {
         'Pendiente de pago': 'bg-yellow-100 text-yellow-800',
@@ -19,18 +18,19 @@ const StatusBadge: React.FC<{ status: Purchase['status'] }> = ({ status }) => {
 };
 
 const Purchases: React.FC = () => {
-    // Leer datos usando los selectores
     const allPurchases = useSelector(selectAllPurchases);
     const allSuppliers = useSelector(selectAllSuppliers);
-    const dispatch = useDispatch<AppDispatch>(); 
-
-    // Estados para filtros y paginación
+    
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState('all');
     const [supplierFilter, setSupplierFilter] = useState('all');
     const [currentPage, setCurrentPage] = useState(1);
     
-    // Lógica de filtrado
+    // Estados para el modal de pago
+    const [isPayModalOpen, setIsPayModalOpen] = useState(false);
+    const [selectedPurchase, setSelectedPurchase] = useState<Purchase | null>(null);
+    const [selectedSupplier, setSelectedSupplier] = useState<Supplier | null>(null);
+
     const filteredPurchases = useMemo(() => {
         return allPurchases.filter(p => {
             const matchesSearch = p.invoiceNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -38,17 +38,15 @@ const Purchases: React.FC = () => {
             const matchesStatus = statusFilter === 'all' || p.status === statusFilter;
             const matchesSupplier = supplierFilter === 'all' || p.supplierId === supplierFilter;
             return matchesSearch && matchesStatus && matchesSupplier;
-        }).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()); // Mostrar más nuevas primero
+        }).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     }, [allPurchases, searchTerm, statusFilter, supplierFilter]);
 
-    // Lógica de paginación
     const totalPages = Math.ceil(filteredPurchases.length / ITEMS_PER_PAGE);
     const paginatedPurchases = filteredPurchases.slice(
         (currentPage - 1) * ITEMS_PER_PAGE,
         currentPage * ITEMS_PER_PAGE
     );
 
-    // Resetear página a 1 cuando cambian los filtros
     useEffect(() => {
         setCurrentPage(1);
     }, [searchTerm, statusFilter, supplierFilter]);
@@ -59,10 +57,14 @@ const Purchases: React.FC = () => {
         }
     };
 
-    // Manejador para marcar como pagada
-    const handleMarkAsPaid = (purchaseId: string) => {
-        if (window.confirm("¿Está seguro de que desea marcar esta factura como pagada? Esta acción no se puede deshacer.")) {
-            dispatch(updatePurchaseStatus({ id: purchaseId, status: 'Pagada' }));
+    const handleOpenPayModal = (purchase: Purchase) => {
+        const supplier = allSuppliers.find(s => s.id === purchase.supplierId);
+        if (supplier) {
+            setSelectedSupplier(supplier);
+            setSelectedPurchase(purchase);
+            setIsPayModalOpen(true);
+        } else {
+            alert("No se encontró la información del proveedor.");
         }
     };
 
@@ -76,7 +78,6 @@ const Purchases: React.FC = () => {
 
                 <div className="bg-white p-4 rounded-xl shadow-sm">
                     <div className="flex flex-col md:flex-row justify-between items-center gap-4 mb-4">
-                        {/* Barra de Búsqueda */}
                         <div className="relative w-full md:w-1/3">
                             <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
                             <input 
@@ -88,7 +89,6 @@ const Purchases: React.FC = () => {
                             />
                         </div>
                         
-                        {/* Filtros */}
                         <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
                             <select 
                                 className="p-2 border border-slate-300 rounded-lg"
@@ -112,7 +112,6 @@ const Purchases: React.FC = () => {
                         </div>
                     </div>
 
-                    {/* Tabla de Compras */}
                     <div className="overflow-x-auto">
                         <table className="w-full text-left">
                             <thead className="text-xs text-slate-500 uppercase bg-slate-50">
@@ -138,14 +137,20 @@ const Purchases: React.FC = () => {
                                         <td className="px-4 py-3 font-semibold text-slate-800">${purchase.total.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                                         <td className="px-4 py-3"><StatusBadge status={purchase.status} /></td>
                                         <td className="px-4 py-3 text-left whitespace-nowrap">
-                                            <button 
-                                                onClick={() => handleMarkAsPaid(purchase.id)}
-                                                className="text-green-600 hover:text-green-800 px-2 disabled:opacity-30 disabled:cursor-not-allowed"
-                                                aria-label="Marcar como pagada"
-                                                disabled={purchase.status === 'Pagada'}
-                                            >
-                                                <CheckCircleIcon className="w-4 h-4 inline-block" />
-                                            </button>
+                                            {purchase.status === 'Pendiente de pago' ? (
+                                                <button 
+                                                    onClick={() => handleOpenPayModal(purchase)}
+                                                    className="text-blue-600 hover:text-blue-800 px-2 flex items-center gap-1"
+                                                    title="Pagar Factura"
+                                                >
+                                                    <CurrencyDollarIcon className="w-5 h-5" />
+                                                    <span className="text-sm font-medium">Pagar</span>
+                                                </button>
+                                            ) : (
+                                                <span className="text-green-600 flex items-center gap-1 px-2">
+                                                    <CheckCircleIcon className="w-5 h-5" />
+                                                </span>
+                                            )}
                                         </td>
                                     </tr>
                                 ))}
@@ -153,7 +158,6 @@ const Purchases: React.FC = () => {
                         </table>
                     </div>
 
-                    {/* Paginación */}
                     <div className="flex justify-between items-center mt-4 text-sm">
                         <span className="text-slate-600">
                             Mostrando {Math.min((currentPage - 1) * ITEMS_PER_PAGE + 1, filteredPurchases.length) || 0} - {Math.min(currentPage * ITEMS_PER_PAGE, filteredPurchases.length)} de {filteredPurchases.length} compras
@@ -177,6 +181,14 @@ const Purchases: React.FC = () => {
                     </div>
                 </div>
             </div>
+
+            {/* Modal de Pago, ahora reutilizable */}
+            <AddSupplierPaymentModal
+                isOpen={isPayModalOpen}
+                onClose={() => setIsPayModalOpen(false)}
+                supplier={selectedSupplier}
+                purchase={selectedPurchase}
+            />
         </>
     );
 };
