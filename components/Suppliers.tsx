@@ -2,13 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState, AppDispatch } from '../store';
 import { Supplier } from '../types';
-// 1. Importar los iconos necesarios
-import { PlusIcon, SearchIcon, TrashIcon, ShoppingBagIcon, PencilIcon, CurrencyDollarIcon } from './Icons';
+import { PlusIcon, SearchIcon, TrashIcon, ShoppingBagIcon, PencilIcon } from './Icons';
 import { deleteSupplier } from '../store/suppliersSlice';
 import AddSupplierModal from './AddSupplierModal';
 import EditSupplierModal from './EditSupplierModal';
 import AddPurchaseModal from './AddPurchaseModal';
-import AddSupplierPaymentModal from './AddSupplierPaymentModal'; // 2. Importar el nuevo modal
 
 const ITEMS_PER_PAGE = 10;
 
@@ -32,8 +30,6 @@ const Suppliers: React.FC = () => {
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [isPurchaseModalOpen, setIsPurchaseModalOpen] = useState(false);
-    // 3. Estado para el modal de pago
-    const [isPayModalOpen, setIsPayModalOpen] = useState(false);
     
     const [currentSupplier, setCurrentSupplier] = useState<Supplier | null>(null);
 
@@ -46,12 +42,6 @@ const Suppliers: React.FC = () => {
         if (window.confirm(`¿Está seguro de que desea eliminar a ${supplierName}?`)) {
             dispatch(deleteSupplier(supplierId));
         }
-    };
-
-    // 4. Manejador para abrir el modal de pago
-    const handleAddPayment = (supplier: Supplier) => {
-        setCurrentSupplier(supplier);
-        setIsPayModalOpen(true);
     };
 
     const filteredSuppliers = suppliers.filter(s => {
@@ -149,16 +139,7 @@ const Suppliers: React.FC = () => {
                                         </td>
                                         <td className="px-4 py-3 text-slate-600">{supplier.email}</td>
                                         <td className="px-4 py-3"><StatusBadge status={supplier.status} /></td>
-                                        {/* 5. Columna de Acciones actualizada */}
                                         <td className="px-4 py-3 text-left whitespace-nowrap">
-                                            <button 
-                                                onClick={() => handleAddPayment(supplier)}
-                                                className="text-green-600 hover:text-green-800 px-2 disabled:opacity-30 disabled:cursor-not-allowed"
-                                                aria-label={`Registrar pago a ${supplier.name}`}
-                                                disabled={supplier.balance <= 0}
-                                            >
-                                                <CurrencyDollarIcon className="w-4 h-4 inline-block" />
-                                            </button>
                                             <button 
                                                 onClick={() => handleEdit(supplier)}
                                                 className="text-blue-600 hover:text-blue-800 px-2"
@@ -204,7 +185,6 @@ const Suppliers: React.FC = () => {
                 </div>
             </div>
             
-            {/* 6. Renderizar todos los modales */}
             <AddSupplierModal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} />
             <EditSupplierModal 
                 isOpen={isEditModalOpen} 
@@ -212,11 +192,6 @@ const Suppliers: React.FC = () => {
                 supplier={currentSupplier} 
             />
             <AddPurchaseModal isOpen={isPurchaseModalOpen} onClose={() => setIsPurchaseModalOpen(false)} />
-            <AddSupplierPaymentModal
-                isOpen={isPayModalOpen}
-                onClose={() => setIsPayModalOpen(false)}
-                supplier={currentSupplier}
-            />
         </>
     );
 };
