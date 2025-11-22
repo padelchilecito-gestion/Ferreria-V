@@ -1,37 +1,28 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Product, Sale } from '../types';
-import { SearchIcon, TrashIcon, CheckCircleIcon, CreditCardIcon } from './Icons';
+import { SearchIcon, TrashIcon, CheckCircleIcon, CreditCardIcon, ChecksIcon } from './Icons';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState, AppDispatch } from '../store';
 import { addToCart, updateQuantity, removeFromCart, clearCart } from '../store/cartSlice';
 import { reduceStock } from '../store/productsSlice';
 import { addSale } from '../store/salesSlice';
 import { updateCustomerBalance } from '../store/customersSlice';
+import { addCheck } from '../store/checksSlice'; // Importamos la acción para crear cheques
 
 // --- CONFIGURACIÓN DE TARJETAS (ARGENTINA) ---
-// Tasas y plazos simulados. Ajustar según los coeficientes reales de tu posnet/procesador (Payway, Posnet, MercadoPago, etc.)
 const CREDIT_CARD_PLANS = [
-    // VISA
     { id: 'visa-1', name: 'Visa - 1 pago', installments: 1, interest: 0, accreditationDays: 10 },
-    { id: 'visa-3', name: 'Visa - 3 cuotas', installments: 3, interest: 0.15, accreditationDays: 2 }, // Cuota Simple / Ahora 3
-    { id: 'visa-6', name: 'Visa - 6 cuotas', installments: 6, interest: 0.35, accreditationDays: 5 }, // Cuota Simple / Ahora 6
-    { id: 'visa-12', name: 'Visa - 12 cuotas', installments: 12, interest: 0.75, accreditationDays: 5 }, // Cuota Simple / Ahora 12
-    
-    // MASTERCARD
+    { id: 'visa-3', name: 'Visa - 3 cuotas', installments: 3, interest: 0.15, accreditationDays: 2 },
+    { id: 'visa-6', name: 'Visa - 6 cuotas', installments: 6, interest: 0.35, accreditationDays: 5 },
+    { id: 'visa-12', name: 'Visa - 12 cuotas', installments: 12, interest: 0.75, accreditationDays: 5 },
     { id: 'master-1', name: 'Mastercard - 1 pago', installments: 1, interest: 0, accreditationDays: 10 },
     { id: 'master-3', name: 'Mastercard - 3 cuotas', installments: 3, interest: 0.15, accreditationDays: 2 },
     { id: 'master-6', name: 'Mastercard - 6 cuotas', installments: 6, interest: 0.35, accreditationDays: 5 },
-    
-    // NARANJA X
     { id: 'naranja-1', name: 'Naranja X - 1 pago', installments: 1, interest: 0, accreditationDays: 15 },
-    { id: 'naranja-z', name: 'Naranja X - Plan Z (3 ctas)', installments: 3, interest: 0.10, accreditationDays: 15 }, // Simulación costo financiero
+    { id: 'naranja-z', name: 'Naranja X - Plan Z (3 ctas)', installments: 3, interest: 0.10, accreditationDays: 15 },
     { id: 'naranja-6', name: 'Naranja X - 6 cuotas', installments: 6, interest: 0.40, accreditationDays: 15 },
-
-    // AMEX
     { id: 'amex-1', name: 'Amex - 1 pago', installments: 1, interest: 0, accreditationDays: 10 },
     { id: 'amex-3', name: 'Amex - 3 cuotas', installments: 3, interest: 0.18, accreditationDays: 5 },
-
-    // CABAL
     { id: 'cabal-1', name: 'Cabal - 1 pago', installments: 1, interest: 0, accreditationDays: 10 },
     { id: 'cabal-3', name: 'Cabal - 3 cuotas', installments: 3, interest: 0.15, accreditationDays: 48 },
 ];
@@ -42,18 +33,39 @@ const PointOfSale: React.FC = () => {
     const [priceType, setPriceType] = useState<'retail' | 'wholesale'>('retail');
     const [paymentMethod, setPaymentMethod] = useState<'efectivo' | 'debito' | 'cheque' | 'cuenta corriente' | 'credito'>('efectivo');
     const [paidAmount, setPaidAmount] = useState(0);
-    // Estado para el costo de flete
     const [freightCost, setFreightCost] = useState(0);
     const [categoryFilter, setCategoryFilter] = useState('all');
     const [isProcessing, setIsProcessing] = useState(false);
     
+    // Estado para Tarjetas
     const [selectedCardPlanId, setSelectedCardPlanId] = useState(CREDIT_CARD_PLANS[0].id);
+
+    // Estado para Cheques
+    const [checkBank, setCheckBank] = useState('');
+    const [checkNumber, setCheckNumber] = useState('');
+    const [checkIssueDate, setCheckIssueDate] = useState('');
+    const [checkDueDate, setCheckDueDate] = useState('');
+    const [checkIssuer, setCheckIssuer] = useState('');
 
     const dispatch = useDispatch<AppDispatch>();
     const cart = useSelector((state: RootState) => state.cart.items);
     const allProducts = useSelector((state: RootState) => state.products.products);
     const allCustomers = useSelector((state: RootState) => state.customers.customers);
     const taxRate = useSelector((state: RootState) => state.settings.taxRate);
+
+    // Efecto para inicializar fechas y emisor del cheque
+    useEffect(() => {
+        const today = new Date().toISOString().split('T')[0];
+        setCheckIssueDate(today);
+        setCheckDueDate(today);
+
+        if (selectedCustomer !== 'final') {
+            const customer = allCustomers.find(c => c.id === selectedCustomer);
+            if (customer) setCheckIssuer(customer.name);
+        } else {
+            setCheckIssuer('');
+        }
+    }, [selectedCustomer, allCustomers]);
 
     const uniqueCategories = useMemo(() => {
         return [...new Set(allProducts.map(p => p.category).filter(Boolean))];
@@ -94,11 +106,9 @@ const PointOfSale: React.FC = () => {
     }, 0);
     
     const tax = subtotal * taxRate;
-    
-    // El flete se suma al subtotal e impuestos para formar la base imponible final
     const baseTotal = subtotal + tax + Number(freightCost);
     
-    // Cálculos específicos de tarjeta
+    // Cálculos específicos
     let surcharge = 0;
     let accreditationText = '';
     let installmentAmount = 0;
@@ -106,7 +116,6 @@ const PointOfSale: React.FC = () => {
     if (paymentMethod === 'credito') {
         const plan = CREDIT_CARD_PLANS.find(p => p.id === selectedCardPlanId);
         if (plan) {
-            // El interés se calcula sobre el total (incluyendo flete)
             surcharge = baseTotal * plan.interest;
             const finalCardTotal = baseTotal + surcharge;
             installmentAmount = finalCardTotal / plan.installments;
@@ -131,6 +140,15 @@ const PointOfSale: React.FC = () => {
 
     const handleFinalizeSale = async () => {
         if (cart.length === 0) return;
+
+        // Validaciones de Cheque
+        if (paymentMethod === 'cheque') {
+            if (!checkBank || !checkNumber || !checkIssueDate || !checkDueDate || !checkIssuer) {
+                alert('Por favor complete todos los datos del cheque.');
+                return;
+            }
+        }
+
         setIsProcessing(true);
 
         const customerName = selectedCustomer === 'final'
@@ -152,23 +170,44 @@ const PointOfSale: React.FC = () => {
         };
 
         try {
+            // 1. Si es cheque, lo agregamos a la cartera primero
+            if (paymentMethod === 'cheque') {
+                await dispatch(addCheck({
+                    bank: checkBank,
+                    number: checkNumber,
+                    amount: total, // El monto del cheque cubre el total
+                    issueDate: checkIssueDate,
+                    dueDate: checkDueDate,
+                    issuer: checkIssuer,
+                    status: 'En cartera'
+                })).unwrap();
+            }
+
+            // 2. Guardar Venta
             await dispatch(addSale(newSaleData)).unwrap();
 
+            // 3. Reducir Stock
             const stockPromises = cart.map(item => 
                 dispatch(reduceStock({ id: item.id, quantity: item.quantity })).unwrap()
             );
             await Promise.all(stockPromises);
 
+            // 4. Actualizar Deuda Cliente (si aplica)
             if (selectedCustomer !== 'final' && dueAmount !== 0) {
                 await dispatch(updateCustomerBalance({ customerId: selectedCustomer, dueAmount: dueAmount })).unwrap();
             }
 
-            // Limpiar
+            // 5. Limpiar UI
             dispatch(clearCart());
             setPaidAmount(0);
             setFreightCost(0);
             setSelectedCustomer('final');
             setPaymentMethod('efectivo');
+            // Resetear datos cheque
+            setCheckBank('');
+            setCheckNumber('');
+            setCheckIssuer('');
+            
             alert("Venta realizada con éxito");
 
         } catch (error) {
@@ -313,11 +352,57 @@ const PointOfSale: React.FC = () => {
                             disabled={method === 'cuenta corriente' && selectedCustomer === 'final'}
                         >
                             {method === 'credito' && <CreditCardIcon className="w-5 h-5 text-slate-500" />}
+                            {method === 'cheque' && <ChecksIcon className="w-5 h-5 text-slate-500" />}
                             {method.charAt(0).toUpperCase() + method.slice(1)}
                             {method === 'cuenta corriente' && selectedCustomer === 'final' && <span className="text-xs text-red-500 ml-2">(Solo clientes)</span>}
                         </button>
                     ))}
                 </div>
+
+                {/* SECCIÓN DE DATOS DE CHEQUE */}
+                {paymentMethod === 'cheque' && (
+                    <div className="p-4 border-t bg-blue-50 space-y-3 animate-in fade-in border-b">
+                         <div className="flex items-center gap-2 text-blue-800 mb-2">
+                            <span className="font-semibold text-sm">Datos del Cheque</span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                            <input 
+                                type="text" placeholder="Banco" 
+                                value={checkBank} onChange={e => setCheckBank(e.target.value)}
+                                className="w-full p-2 text-sm border border-blue-300 rounded"
+                            />
+                            <input 
+                                type="text" placeholder="Número" 
+                                value={checkNumber} onChange={e => setCheckNumber(e.target.value)}
+                                className="w-full p-2 text-sm border border-blue-300 rounded"
+                            />
+                        </div>
+                         <div className="grid grid-cols-2 gap-2">
+                             <div>
+                                <label className="text-xs text-slate-500">F. Emisión</label>
+                                <input 
+                                    type="date" 
+                                    value={checkIssueDate} onChange={e => setCheckIssueDate(e.target.value)}
+                                    className="w-full p-2 text-sm border border-blue-300 rounded"
+                                />
+                             </div>
+                             <div>
+                                <label className="text-xs text-slate-500">F. Cobro</label>
+                                <input 
+                                    type="date" 
+                                    value={checkDueDate} onChange={e => setCheckDueDate(e.target.value)}
+                                    className="w-full p-2 text-sm border border-blue-300 rounded"
+                                />
+                             </div>
+                        </div>
+                        <input 
+                            type="text" placeholder="Emisor / Titular" 
+                            value={checkIssuer} onChange={e => setCheckIssuer(e.target.value)}
+                            className="w-full p-2 text-sm border border-blue-300 rounded"
+                        />
+                        <p className="text-xs text-blue-600 italic">* Se agregará a Cartera automáticamente.</p>
+                    </div>
+                )}
 
                 {/* SECCIÓN DE TARJETA DE CRÉDITO */}
                 {paymentMethod === 'credito' && (
