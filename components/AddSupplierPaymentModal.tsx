@@ -1,35 +1,33 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { AppDispatch, RootState } from '../store';
+import { AppDispatch } from '../store';
 import { addSupplierPayment } from '../store/suppliersSlice';
-import { updateCheckStatus } from '../store/checksSlice'; // Necesitamos esto para marcar los cheques
+import { updateCheckStatus } from '../store/checksSlice';
+import { updatePurchaseStatus } from '../store/purchasesSlice'; // Importar acción para actualizar la compra
 import { selectAllChecks } from '../store/selectors';
-import { Supplier, Check } from '../types';
+import { Supplier, Purchase } from '../types';
 import { XIcon, CurrencyDollarIcon } from './Icons';
 
 interface AddSupplierPaymentModalProps {
   isOpen: boolean;
   onClose: () => void;
   supplier: Supplier | null;
+  purchase?: Purchase | null; // Opcional: La compra específica que se está pagando
 }
 
-const AddSupplierPaymentModal: React.FC<AddSupplierPaymentModalProps> = ({ isOpen, onClose, supplier }) => {
+const AddSupplierPaymentModal: React.FC<AddSupplierPaymentModalProps> = ({ isOpen, onClose, supplier, purchase }) => {
   const dispatch = useDispatch<AppDispatch>();
   const allChecks = useSelector(selectAllChecks);
 
-  // Estado para el monto en efectivo/transferencia
   const [cashAmount, setCashAmount] = useState(0);
-  // Estado para los IDs de los cheques seleccionados
   const [selectedCheckIds, setSelectedCheckIds] = useState<string[]>([]);
   const [note, setNote] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Filtrar solo los cheques disponibles
   const availableChecks = useMemo(() => {
     return allChecks.filter(c => c.status === 'En cartera');
   }, [allChecks]);
 
-  // Calcular el monto total de los cheques seleccionados
   const checksTotalAmount = useMemo(() => {
     return selectedCheckIds.reduce((total, id) => {
         const check = availableChecks.find(c => c.id === id);
@@ -37,17 +35,22 @@ const AddSupplierPaymentModal: React.FC<AddSupplierPaymentModalProps> = ({ isOpe
     }, 0);
   }, [selectedCheckIds, availableChecks]);
 
-  // Monto total del pago (Efectivo + Cheques)
   const totalPayment = Number(cashAmount) + checksTotalAmount;
 
   useEffect(() => {
-    if (!isOpen) {
-        // Resetear formulario al cerrar
-        setCashAmount(0);
+    if (isOpen && supplier) {
+        // Si viene una compra específica, sugerimos ese monto
+        if (purchase) {
+            setCashAmount(purchase.total);
+            setNote(`Pago de factura: ${purchase.invoiceNumber}`);
+        } else {
+            // Si es un pago general (aunque ahora lo limitamos desde compras, dejamos la lógica por seguridad)
+            setCashAmount(supplier.balance > 0 ? supplier.balance : 0);
+            setNote('');
+        }
         setSelectedCheckIds([]);
-        setNote('');
     }
-  }, [isOpen]);
+  }, [isOpen, supplier, purchase]);
 
   const handleCheckToggle = (checkId: string) => {
       setSelectedCheckIds(prev => 
@@ -56,6 +59,14 @@ const AddSupplierPaymentModal: React.FC<AddSupplierPaymentModalProps> = ({ isOpe
             : [...prev, checkId]
       );
   };
+
+  // Efecto para ajustar el efectivo sugerido si se seleccionan cheques
+  useEffect(() => {
+      if (purchase) {
+          const remaining = Math.max(0, purchase.total - checksTotalAmount);
+          setCashAmount(remaining);
+      }
+  }, [checksTotalAmount, purchase]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -66,17 +77,25 @@ const AddSupplierPaymentModal: React.FC<AddSupplierPaymentModalProps> = ({ isOpe
     setIsSubmitting(true);
 
     try {
-      // 1. Actualizar el estado de cada cheque utilizado
+      // 1. Actualizar cheques
       const checkPromises = selectedCheckIds.map(checkId => 
           dispatch(updateCheckStatus({ id: checkId, status: 'Entregado' })).unwrap()
       );
       await Promise.all(checkPromises);
 
-      // 2. Registrar el pago total en la cuenta del proveedor (descuenta deuda)
+      // 2. Registrar el pago en la cuenta del proveedor
       await dispatch(addSupplierPayment({
           supplierId: supplier.id, 
           paymentAmount: totalPayment
       })).unwrap();
+      
+      // 3. Si hay una compra asociada, marcarla como pagada
+      if (purchase) {
+          await dispatch(updatePurchaseStatus({ 
+              id: purchase.id, 
+              status: 'Pagada' 
+          })).unwrap();
+      }
       
       onClose();
     } catch (error) {
@@ -102,7 +121,9 @@ const AddSupplierPaymentModal: React.FC<AddSupplierPaymentModalProps> = ({ isOpe
         <div className="flex justify-between items-center p-4 border-b">
           <div className="flex items-center gap-3">
             <CurrencyDollarIcon className="w-6 h-6 text-slate-700" />
-            <h2 className="text-lg font-bold text-slate-800">Registrar Pago a Proveedor</h2>
+            <h2 className="text-lg font-bold text-slate-800">
+                {purchase ? `Pagar Factura ${purchase.invoiceNumber}` : 'Registrar Pago a Proveedor'}
+            </h2>
           </div>
           <button onClick={onClose} className="text-slate-500 hover:text-slate-800">
             <XIcon className="w-6 h-6" />
@@ -112,20 +133,25 @@ const AddSupplierPaymentModal: React.FC<AddSupplierPaymentModalProps> = ({ isOpe
         <form onSubmit={handleSubmit} className="flex-1 overflow-hidden flex flex-col">
           <div className="p-6 space-y-6 overflow-y-auto">
             
-            {/* Encabezado con saldo */}
             <div className="flex justify-between items-center bg-slate-50 p-4 rounded-lg border border-slate-200">
                 <div>
                     <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">Proveedor</label>
                     <p className="font-bold text-slate-800 text-lg">{supplier.name}</p>
                 </div>
                 <div className="text-right">
-                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">Saldo Actual (Deuda)</label>
+                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">Saldo Total (Deuda)</label>
                     <p className="font-bold text-red-600 text-xl">${supplier.balance.toFixed(2)}</p>
                 </div>
             </div>
 
+            {purchase && (
+                 <div className="bg-blue-50 p-3 rounded-lg border border-blue-100 text-blue-800 text-sm flex justify-between items-center">
+                    <span>Monto de la Factura:</span>
+                    <span className="font-bold text-lg">${purchase.total.toFixed(2)}</span>
+                 </div>
+            )}
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Columna Izquierda: Efectivo y Nota */}
                 <div className="space-y-4">
                     <div>
                         <label className="block text-sm font-medium text-slate-700 mb-1">Efectivo / Transferencia</label>
@@ -142,17 +168,16 @@ const AddSupplierPaymentModal: React.FC<AddSupplierPaymentModalProps> = ({ isOpe
                         </div>
                     </div>
                     <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-1">Nota / Comprobante (Opcional)</label>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">Nota / Comprobante</label>
                         <textarea
                             value={note}
                             onChange={e => setNote(e.target.value)}
                             className="w-full p-2 border border-slate-300 rounded-lg h-24 resize-none focus:ring-2 focus:ring-blue-500 outline-none"
-                            placeholder="Ej: Pago factura #123..."
+                            placeholder="Ej: Transferencia bancaria #987..."
                         />
                     </div>
                 </div>
 
-                {/* Columna Derecha: Selección de Cheques */}
                 <div className="border border-slate-200 rounded-lg flex flex-col h-64">
                     <div className="p-3 border-b bg-slate-50 font-medium text-slate-700 text-sm flex justify-between items-center">
                         <span>Cheques en Cartera</span>
@@ -188,7 +213,6 @@ const AddSupplierPaymentModal: React.FC<AddSupplierPaymentModalProps> = ({ isOpe
                 </div>
             </div>
 
-            {/* Resumen de Totales */}
             <div className="border-t border-slate-200 pt-4 mt-2">
                 <div className="flex justify-end gap-8 text-sm">
                     <div className="text-right">
@@ -206,7 +230,7 @@ const AddSupplierPaymentModal: React.FC<AddSupplierPaymentModalProps> = ({ isOpe
                 </div>
                 {totalPayment > supplier.balance && (
                     <p className="text-right text-xs text-amber-600 mt-2 font-medium">
-                        ⚠️ El monto supera la deuda actual. El proveedor quedará con saldo a favor.
+                        ⚠️ El monto supera la deuda actual.
                     </p>
                 )}
             </div>
