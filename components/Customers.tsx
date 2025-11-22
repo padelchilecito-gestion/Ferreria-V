@@ -2,20 +2,19 @@ import React, { useState, useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState, AppDispatch } from '../store';
 import { Customer } from '../types';
-import { PlusIcon, SearchIcon, CurrencyDollarIcon } from './Icons'; // 1. Importar CurrencyDollarIcon
+import { PlusIcon, SearchIcon, CurrencyDollarIcon } from './Icons';
 import AddCustomerModal from './AddCustomerModal';
 import EditCustomerModal from './EditCustomerModal';
 import { deleteCustomer } from '../store/customersSlice';
-import AddPaymentModal from './AddPaymentModal'; // 2. Importar el nuevo modal de Pago
+import AddPaymentModal from './AddPaymentModal';
 
 const ITEMS_PER_PAGE = 10;
 
-// 3. Añadir 'onAddPayment' a las props
 interface CustomerDetailProps {
   customer: Customer | null;
   onEdit: () => void;
   onDelete: () => void;
-  onAddPayment: () => void; // <-- NUEVO
+  onAddPayment: () => void;
 }
 
 const CustomerDetail: React.FC<CustomerDetailProps> = ({ customer, onEdit, onDelete, onAddPayment }) => {
@@ -32,14 +31,13 @@ const CustomerDetail: React.FC<CustomerDetailProps> = ({ customer, onEdit, onDel
   return (
       <div className="flex-1 bg-white p-6 rounded-xl shadow-sm">
           <div className="flex items-center gap-4 pb-6 border-b">
-              <img src={`https://i.pravatar.cc/80?u=${customer.id}`} alt={customer.name} className="w-20 h-20 rounded-full" />
+              {/* Se eliminó la etiqueta <img> que mostraba la foto */}
               <div>
                   <h2 className="text-xl font-bold text-slate-800">{customer.name}</h2>
                   <p className="text-sm text-slate-500">CUIT/DNI: {customer.cuit}</p>
               </div>
           </div>
           <div className="py-6 space-y-4">
-              {/* ... (campos de email, teléfono, dirección, estado sin cambios) ... */}
               <div className="flex items-center">
                   <span className="w-24 font-medium text-sm text-slate-500">Email</span>
                   <span className="text-slate-700">{customer.email}</span>
@@ -66,12 +64,11 @@ const CustomerDetail: React.FC<CustomerDetailProps> = ({ customer, onEdit, onDel
                   </span>
               </div>
           </div>
-           {/* 4. Botones de acción actualizados */}
            <div className="space-y-2">
               <button 
                 onClick={onAddPayment}
                 className="w-full flex items-center justify-center gap-2 py-2 border border-green-600 bg-green-50 rounded-lg text-green-700 hover:bg-green-100 disabled:opacity-50 disabled:cursor-not-allowed"
-                disabled={!hasDebt} // Deshabilitar si no hay deuda
+                disabled={!hasDebt}
               >
                 <CurrencyDollarIcon className="w-5 h-5" />
                 Registrar Pago
@@ -101,7 +98,6 @@ const Customers: React.FC = () => {
 
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  // 5. Estado para el nuevo modal de pago
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
 
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
@@ -122,7 +118,6 @@ const Customers: React.FC = () => {
     }
   };
 
-  // 6. Manejador para abrir el modal de pago
   const handleAddPayment = () => {
     if (!selectedCustomer) return;
     setIsPaymentModalOpen(true);
@@ -250,7 +245,6 @@ const Customers: React.FC = () => {
 
                   </div>
                   <div className="lg:w-1/3">
-                      {/* 7. Pasar el nuevo manejador al detalle */}
                       <CustomerDetail 
                         customer={selectedCustomer} 
                         onEdit={handleEdit}
@@ -261,7 +255,6 @@ const Customers: React.FC = () => {
               </div>
           </div>
           
-          {/* 8. Renderizar los 3 modales */}
           <AddCustomerModal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} />
           <EditCustomerModal 
             isOpen={isEditModalOpen} 
