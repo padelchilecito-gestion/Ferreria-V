@@ -59,8 +59,8 @@ export interface Sale {
   items: SaleItem[];
   subtotal: number;
   tax: number;
+  freightCost: number; // <-- NUEVO CAMPO: Costo de Flete en la venta
   total: number;
-  // Agregamos 'credito' aquí
   paymentMethod: 'efectivo' | 'debito' | 'cheque' | 'cuenta corriente' | 'credito';
   paidAmount: number;
   dueAmount: number;
