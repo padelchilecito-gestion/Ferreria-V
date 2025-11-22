@@ -7,7 +7,7 @@ import { addToCart, updateQuantity, removeFromCart, clearCart } from '../store/c
 import { reduceStock } from '../store/productsSlice';
 import { addSale } from '../store/salesSlice';
 import { updateCustomerBalance } from '../store/customersSlice';
-import { addCheck } from '../store/checksSlice'; // Importamos la acción para crear cheques
+import { addCheck } from '../store/checksSlice';
 
 // --- CONFIGURACIÓN DE TARJETAS (ARGENTINA) ---
 const CREDIT_CARD_PLANS = [
@@ -32,7 +32,7 @@ const PointOfSale: React.FC = () => {
     const [selectedCustomer, setSelectedCustomer] = useState<string>('final');
     const [priceType, setPriceType] = useState<'retail' | 'wholesale'>('retail');
     const [paymentMethod, setPaymentMethod] = useState<'efectivo' | 'debito' | 'cheque' | 'cuenta corriente' | 'credito'>('efectivo');
-    const [paidAmount, setPaidAmount] = useState(0);
+    const [paidAmount, setPaidAmount] = useState(0); // Monto en efectivo
     const [freightCost, setFreightCost] = useState(0);
     const [categoryFilter, setCategoryFilter] = useState('all');
     const [isProcessing, setIsProcessing] = useState(false);
@@ -46,6 +46,7 @@ const PointOfSale: React.FC = () => {
     const [checkIssueDate, setCheckIssueDate] = useState('');
     const [checkDueDate, setCheckDueDate] = useState('');
     const [checkIssuer, setCheckIssuer] = useState('');
+    const [checkAmount, setCheckAmount] = useState(0); // Nuevo estado para el monto del cheque
 
     const dispatch = useDispatch<AppDispatch>();
     const cart = useSelector((state: RootState) => state.cart.items);
@@ -53,7 +54,7 @@ const PointOfSale: React.FC = () => {
     const allCustomers = useSelector((state: RootState) => state.customers.customers);
     const taxRate = useSelector((state: RootState) => state.settings.taxRate);
 
-    // Efecto para inicializar fechas y emisor del cheque
+    // Inicialización de fechas y emisor
     useEffect(() => {
         const today = new Date().toISOString().split('T')[0];
         setCheckIssueDate(today);
@@ -78,10 +79,26 @@ const PointOfSale: React.FC = () => {
         return matchesSearch && matchesCategory;
     });
 
+    // 1. CORRECCIÓN DE STOCK: Validar antes de agregar
     const dispatchAddToCart = (product: Product) => {
+        const currentInCart = cart.find(item => item.id === product.id)?.quantity || 0;
+        
+        if (product.stock <= currentInCart) {
+            alert(`No hay suficiente stock de ${product.name}. Stock actual: ${product.stock}`);
+            return;
+        }
         dispatch(addToCart(product));
     };
+
     const dispatchUpdateQuantity = (productId: string, quantity: number) => {
+        const product = allProducts.find(p => p.id === productId);
+        if (!product) return;
+
+        if (quantity > product.stock) {
+             alert(`No hay suficiente stock. Máximo disponible: ${product.stock}`);
+             return;
+        }
+
         if (quantity <= 0) {
             dispatch(removeFromCart(productId));
         } else {
@@ -99,7 +116,7 @@ const PointOfSale: React.FC = () => {
         return priceType === 'wholesale' ? item.wholesalePrice : item.retailPrice;
     };
 
-    // Cálculo de totales
+    // Cálculos
     const subtotal = cart.reduce((acc, item) => {
         const price = getPrice(item);
         return acc + (price * item.quantity);
@@ -108,7 +125,7 @@ const PointOfSale: React.FC = () => {
     const tax = subtotal * taxRate;
     const baseTotal = subtotal + tax + Number(freightCost);
     
-    // Cálculos específicos
+    // Recargos Tarjeta
     let surcharge = 0;
     let accreditationText = '';
     let installmentAmount = 0;
@@ -124,12 +141,25 @@ const PointOfSale: React.FC = () => {
     }
 
     const total = baseTotal + surcharge;
-    
+
+    // Efecto para pre-rellenar el monto del cheque con el total al cambiar de método
+    useEffect(() => {
+        if (paymentMethod === 'cheque') {
+            setCheckAmount(total);
+            setPaidAmount(0); // Reiniciar el efectivo
+        }
+    }, [paymentMethod, total]);
+
+    // Calculamos si falta cubrir algo con efectivo cuando se paga con cheque
+    const remainingAfterCheck = Math.max(0, total - checkAmount);
+
+    // Lógica de Pagos Mixtos (Cheque + Efectivo) o Puros
     const getPaidAmount = () => {
         switch(paymentMethod) {
             case 'efectivo': return paidAmount;
-            case 'debito': case 'cheque': case 'credito': return total;
+            case 'debito': case 'credito': return total;
             case 'cuenta corriente': return 0;
+            case 'cheque': return checkAmount + paidAmount; // Cheque + Efectivo (Diferencia)
             default: return 0;
         }
     };
@@ -143,9 +173,14 @@ const PointOfSale: React.FC = () => {
 
         // Validaciones de Cheque
         if (paymentMethod === 'cheque') {
-            if (!checkBank || !checkNumber || !checkIssueDate || !checkDueDate || !checkIssuer) {
-                alert('Por favor complete todos los datos del cheque.');
+            if (!checkBank || !checkNumber || !checkIssueDate || !checkDueDate || !checkIssuer || checkAmount <= 0) {
+                alert('Por favor complete todos los datos del cheque correctamente.');
                 return;
+            }
+            // Validar que el pago total cubra el monto
+            if (finalPaidAmount < total - 0.01) { // Margen de error por redondeo
+                 alert(`El pago total (Cheque $${checkAmount} + Efectivo $${paidAmount}) no cubre el total de la venta ($${total.toFixed(2)}).`);
+                 return;
             }
         }
 
@@ -170,12 +205,12 @@ const PointOfSale: React.FC = () => {
         };
 
         try {
-            // 1. Si es cheque, lo agregamos a la cartera primero
+            // 1. Si es cheque, lo agregamos a la cartera
             if (paymentMethod === 'cheque') {
                 await dispatch(addCheck({
                     bank: checkBank,
                     number: checkNumber,
-                    amount: total, // El monto del cheque cubre el total
+                    amount: Number(checkAmount), // Usamos el monto explícito del cheque
                     issueDate: checkIssueDate,
                     dueDate: checkDueDate,
                     issuer: checkIssuer,
@@ -192,8 +227,8 @@ const PointOfSale: React.FC = () => {
             );
             await Promise.all(stockPromises);
 
-            // 4. Actualizar Deuda Cliente (si aplica)
-            if (selectedCustomer !== 'final' && dueAmount !== 0) {
+            // 4. Actualizar Deuda Cliente
+            if (selectedCustomer !== 'final' && dueAmount > 0.01) { // Solo si queda deuda real
                 await dispatch(updateCustomerBalance({ customerId: selectedCustomer, dueAmount: dueAmount })).unwrap();
             }
 
@@ -203,10 +238,10 @@ const PointOfSale: React.FC = () => {
             setFreightCost(0);
             setSelectedCustomer('final');
             setPaymentMethod('efectivo');
-            // Resetear datos cheque
             setCheckBank('');
             setCheckNumber('');
             setCheckIssuer('');
+            setCheckAmount(0);
             
             alert("Venta realizada con éxito");
 
@@ -244,10 +279,16 @@ const PointOfSale: React.FC = () => {
                 </div>
                 <div className="flex-1 overflow-y-auto p-4 space-y-2">
                     {filteredProducts.map(product => (
-                        <div key={product.id} onClick={() => dispatchAddToCart(product)} className="p-3 border rounded-lg flex justify-between items-center hover:bg-blue-50 cursor-pointer transition">
+                        <div 
+                            key={product.id} 
+                            onClick={() => dispatchAddToCart(product)} 
+                            className={`p-3 border rounded-lg flex justify-between items-center transition ${product.stock <= 0 ? 'bg-gray-50 opacity-60 cursor-not-allowed' : 'hover:bg-blue-50 cursor-pointer'}`}
+                        >
                             <div>
                                 <p className="font-semibold text-slate-700">{product.name}</p>
-                                <p className="text-sm text-slate-500">Stock: {product.stock}</p>
+                                <p className={`text-sm ${product.stock <= 0 ? 'text-red-500 font-bold' : 'text-slate-500'}`}>
+                                    Stock: {product.stock}
+                                </p>
                             </div>
                             <p className="text-lg font-bold text-slate-800">${getPrice(product).toFixed(2)}</p>
                         </div>
@@ -377,6 +418,18 @@ const PointOfSale: React.FC = () => {
                                 className="w-full p-2 text-sm border border-blue-300 rounded"
                             />
                         </div>
+                        
+                        {/* 2. CORRECCIÓN CHEQUE: Importe editable y cálculo de diferencia */}
+                        <div>
+                            <label className="text-xs text-slate-500">Importe del Cheque</label>
+                            <input 
+                                type="number" step="0.01"
+                                value={checkAmount || ''} 
+                                onChange={e => setCheckAmount(Number(e.target.value))}
+                                className="w-full p-2 text-sm border border-blue-300 rounded font-bold text-blue-800"
+                            />
+                        </div>
+
                          <div className="grid grid-cols-2 gap-2">
                              <div>
                                 <label className="text-xs text-slate-500">F. Emisión</label>
@@ -401,6 +454,20 @@ const PointOfSale: React.FC = () => {
                             className="w-full p-2 text-sm border border-blue-300 rounded"
                         />
                         <p className="text-xs text-blue-600 italic">* Se agregará a Cartera automáticamente.</p>
+
+                        {/* Mostrar diferencia si el cheque no cubre el total */}
+                        {remainingAfterCheck > 0.01 && (
+                            <div className="mt-3 pt-3 border-t border-blue-200">
+                                <p className="text-xs font-bold text-red-600 mb-1">Faltante a cubrir con Efectivo:</p>
+                                <input 
+                                    type="number" step="0.01"
+                                    value={paidAmount || ''} 
+                                    onChange={e => setPaidAmount(Number(e.target.value))}
+                                    className="w-full p-2 text-sm border border-red-300 rounded font-bold text-red-800"
+                                    placeholder={`Monto restante: $${remainingAfterCheck.toFixed(2)}`}
+                                />
+                            </div>
+                        )}
                     </div>
                 )}
 
@@ -435,6 +502,7 @@ const PointOfSale: React.FC = () => {
                     </div>
                 )}
 
+                {/* Pago en EFECTIVO PURO (sin cheque) */}
                 {paymentMethod === 'efectivo' && (
                     <div className="p-4 border-t space-y-4">
                         <div>
