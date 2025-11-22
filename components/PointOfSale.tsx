@@ -8,14 +8,32 @@ import { reduceStock } from '../store/productsSlice';
 import { addSale } from '../store/salesSlice';
 import { updateCustomerBalance } from '../store/customersSlice';
 
-// --- CONFIGURACIÓN DE TARJETAS (MOCK) ---
+// --- CONFIGURACIÓN DE TARJETAS (ARGENTINA) ---
+// Tasas y plazos simulados. Ajustar según los coeficientes reales de tu posnet/procesador (Payway, Posnet, MercadoPago, etc.)
 const CREDIT_CARD_PLANS = [
+    // VISA
     { id: 'visa-1', name: 'Visa - 1 pago', installments: 1, interest: 0, accreditationDays: 10 },
-    { id: 'visa-3', name: 'Visa - 3 cuotas', installments: 3, interest: 0.15, accreditationDays: 2 },
-    { id: 'visa-6', name: 'Visa - 6 cuotas', installments: 6, interest: 0.30, accreditationDays: 5 },
+    { id: 'visa-3', name: 'Visa - 3 cuotas', installments: 3, interest: 0.15, accreditationDays: 2 }, // Cuota Simple / Ahora 3
+    { id: 'visa-6', name: 'Visa - 6 cuotas', installments: 6, interest: 0.35, accreditationDays: 5 }, // Cuota Simple / Ahora 6
+    { id: 'visa-12', name: 'Visa - 12 cuotas', installments: 12, interest: 0.75, accreditationDays: 5 }, // Cuota Simple / Ahora 12
+    
+    // MASTERCARD
     { id: 'master-1', name: 'Mastercard - 1 pago', installments: 1, interest: 0, accreditationDays: 10 },
     { id: 'master-3', name: 'Mastercard - 3 cuotas', installments: 3, interest: 0.15, accreditationDays: 2 },
-    { id: 'amex-1', name: 'Amex - 1 pago', installments: 1, interest: 0.05, accreditationDays: 15 },
+    { id: 'master-6', name: 'Mastercard - 6 cuotas', installments: 6, interest: 0.35, accreditationDays: 5 },
+    
+    // NARANJA X
+    { id: 'naranja-1', name: 'Naranja X - 1 pago', installments: 1, interest: 0, accreditationDays: 15 },
+    { id: 'naranja-z', name: 'Naranja X - Plan Z (3 ctas)', installments: 3, interest: 0.10, accreditationDays: 15 }, // Simulación costo financiero
+    { id: 'naranja-6', name: 'Naranja X - 6 cuotas', installments: 6, interest: 0.40, accreditationDays: 15 },
+
+    // AMEX
+    { id: 'amex-1', name: 'Amex - 1 pago', installments: 1, interest: 0, accreditationDays: 10 },
+    { id: 'amex-3', name: 'Amex - 3 cuotas', installments: 3, interest: 0.18, accreditationDays: 5 },
+
+    // CABAL
+    { id: 'cabal-1', name: 'Cabal - 1 pago', installments: 1, interest: 0, accreditationDays: 10 },
+    { id: 'cabal-3', name: 'Cabal - 3 cuotas', installments: 3, interest: 0.15, accreditationDays: 48 },
 ];
 
 const PointOfSale: React.FC = () => {
@@ -24,7 +42,7 @@ const PointOfSale: React.FC = () => {
     const [priceType, setPriceType] = useState<'retail' | 'wholesale'>('retail');
     const [paymentMethod, setPaymentMethod] = useState<'efectivo' | 'debito' | 'cheque' | 'cuenta corriente' | 'credito'>('efectivo');
     const [paidAmount, setPaidAmount] = useState(0);
-    // Nuevo estado para el costo de flete
+    // Estado para el costo de flete
     const [freightCost, setFreightCost] = useState(0);
     const [categoryFilter, setCategoryFilter] = useState('all');
     const [isProcessing, setIsProcessing] = useState(false);
@@ -78,7 +96,6 @@ const PointOfSale: React.FC = () => {
     const tax = subtotal * taxRate;
     
     // El flete se suma al subtotal e impuestos para formar la base imponible final
-    // Nota: Asumimos que el flete es un valor neto o final según tu preferencia, aquí se suma directo al total.
     const baseTotal = subtotal + tax + Number(freightCost);
     
     // Cálculos específicos de tarjeta
@@ -93,7 +110,7 @@ const PointOfSale: React.FC = () => {
             surcharge = baseTotal * plan.interest;
             const finalCardTotal = baseTotal + surcharge;
             installmentAmount = finalCardTotal / plan.installments;
-            accreditationText = `Se acredita en ${plan.accreditationDays} días hábiles`;
+            accreditationText = `Se acredita en ${plan.accreditationDays} días hábiles (aprox)`;
         }
     }
 
@@ -127,7 +144,7 @@ const PointOfSale: React.FC = () => {
             items: cart, 
             subtotal: subtotal,
             tax: tax,
-            freightCost: Number(freightCost), // Guardamos el flete
+            freightCost: Number(freightCost),
             total: total,
             paymentMethod: paymentMethod,
             paidAmount: finalPaidAmount,
@@ -149,7 +166,7 @@ const PointOfSale: React.FC = () => {
             // Limpiar
             dispatch(clearCart());
             setPaidAmount(0);
-            setFreightCost(0); // Resetear flete
+            setFreightCost(0);
             setSelectedCustomer('final');
             setPaymentMethod('efectivo');
             alert("Venta realizada con éxito");
@@ -252,7 +269,7 @@ const PointOfSale: React.FC = () => {
                             <span className="font-medium text-slate-800">${tax.toFixed(2)}</span>
                         </div>
                         
-                        {/* --- NUEVO CAMPO DE FLETE --- */}
+                        {/* --- CAMPO DE FLETE --- */}
                         <div className="flex justify-between items-center py-1">
                             <span className="text-slate-600 font-medium">Envío / Flete</span>
                             <div className="flex items-center">
@@ -268,11 +285,10 @@ const PointOfSale: React.FC = () => {
                                 />
                             </div>
                         </div>
-                        {/* ---------------------------- */}
 
                          {paymentMethod === 'credito' && (
                             <div className="flex justify-between text-blue-600 pt-1 border-t border-slate-100">
-                                <span className="">Recargo Tarjeta</span>
+                                <span className="">Recargo Tarjeta ({(CREDIT_CARD_PLANS.find(p => p.id === selectedCardPlanId)?.interest || 0) * 100}%)</span>
                                 <span className="font-medium">+ ${surcharge.toFixed(2)}</span>
                             </div>
                         )}
@@ -303,6 +319,7 @@ const PointOfSale: React.FC = () => {
                     ))}
                 </div>
 
+                {/* SECCIÓN DE TARJETA DE CRÉDITO */}
                 {paymentMethod === 'credito' && (
                     <div className="p-4 border-t bg-blue-50 space-y-3 animate-in fade-in">
                         <label className="text-sm font-medium text-slate-700 block">Plan de Financiación</label>
