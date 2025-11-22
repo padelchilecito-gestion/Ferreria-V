@@ -9,10 +9,9 @@ import { addSale } from '../store/salesSlice';
 import { updateCustomerBalance } from '../store/customersSlice';
 
 // --- CONFIGURACIÓN DE TARJETAS (MOCK) ---
-// Esto simula la "inteligencia" del sistema sobre qué tarjetas acepta y sus condiciones
 const CREDIT_CARD_PLANS = [
     { id: 'visa-1', name: 'Visa - 1 pago', installments: 1, interest: 0, accreditationDays: 10 },
-    { id: 'visa-3', name: 'Visa - 3 cuotas', installments: 3, interest: 0.15, accreditationDays: 2 }, // 15% interés
+    { id: 'visa-3', name: 'Visa - 3 cuotas', installments: 3, interest: 0.15, accreditationDays: 2 },
     { id: 'visa-6', name: 'Visa - 6 cuotas', installments: 6, interest: 0.30, accreditationDays: 5 },
     { id: 'master-1', name: 'Mastercard - 1 pago', installments: 1, interest: 0, accreditationDays: 10 },
     { id: 'master-3', name: 'Mastercard - 3 cuotas', installments: 3, interest: 0.15, accreditationDays: 2 },
@@ -25,10 +24,11 @@ const PointOfSale: React.FC = () => {
     const [priceType, setPriceType] = useState<'retail' | 'wholesale'>('retail');
     const [paymentMethod, setPaymentMethod] = useState<'efectivo' | 'debito' | 'cheque' | 'cuenta corriente' | 'credito'>('efectivo');
     const [paidAmount, setPaidAmount] = useState(0);
+    // Nuevo estado para el costo de flete
+    const [freightCost, setFreightCost] = useState(0);
     const [categoryFilter, setCategoryFilter] = useState('all');
     const [isProcessing, setIsProcessing] = useState(false);
     
-    // Estado para la tarjeta seleccionada
     const [selectedCardPlanId, setSelectedCardPlanId] = useState(CREDIT_CARD_PLANS[0].id);
 
     const dispatch = useDispatch<AppDispatch>();
@@ -69,13 +69,17 @@ const PointOfSale: React.FC = () => {
         return priceType === 'wholesale' ? item.wholesalePrice : item.retailPrice;
     };
 
+    // Cálculo de totales
     const subtotal = cart.reduce((acc, item) => {
         const price = getPrice(item);
         return acc + (price * item.quantity);
     }, 0);
     
     const tax = subtotal * taxRate;
-    const baseTotal = subtotal + tax;
+    
+    // El flete se suma al subtotal e impuestos para formar la base imponible final
+    // Nota: Asumimos que el flete es un valor neto o final según tu preferencia, aquí se suma directo al total.
+    const baseTotal = subtotal + tax + Number(freightCost);
     
     // Cálculos específicos de tarjeta
     let surcharge = 0;
@@ -85,6 +89,7 @@ const PointOfSale: React.FC = () => {
     if (paymentMethod === 'credito') {
         const plan = CREDIT_CARD_PLANS.find(p => p.id === selectedCardPlanId);
         if (plan) {
+            // El interés se calcula sobre el total (incluyendo flete)
             surcharge = baseTotal * plan.interest;
             const finalCardTotal = baseTotal + surcharge;
             installmentAmount = finalCardTotal / plan.installments;
@@ -122,6 +127,7 @@ const PointOfSale: React.FC = () => {
             items: cart, 
             subtotal: subtotal,
             tax: tax,
+            freightCost: Number(freightCost), // Guardamos el flete
             total: total,
             paymentMethod: paymentMethod,
             paidAmount: finalPaidAmount,
@@ -140,8 +146,10 @@ const PointOfSale: React.FC = () => {
                 await dispatch(updateCustomerBalance({ customerId: selectedCustomer, dueAmount: dueAmount })).unwrap();
             }
 
+            // Limpiar
             dispatch(clearCart());
             setPaidAmount(0);
+            setFreightCost(0); // Resetear flete
             setSelectedCustomer('final');
             setPaymentMethod('efectivo');
             alert("Venta realizada con éxito");
@@ -236,11 +244,34 @@ const PointOfSale: React.FC = () => {
                             <span className="font-medium text-slate-800">${subtotal.toFixed(2)}</span>
                         </div>
                          <div className="flex justify-between">
+                            <span className="text-slate-600">Descuento</span>
+                            <span className="font-medium text-slate-800">$0.00</span>
+                        </div>
+                         <div className="flex justify-between">
                             <span className="text-slate-600">IVA ({(taxRate * 100).toFixed(0)}%)</span>
                             <span className="font-medium text-slate-800">${tax.toFixed(2)}</span>
                         </div>
+                        
+                        {/* --- NUEVO CAMPO DE FLETE --- */}
+                        <div className="flex justify-between items-center py-1">
+                            <span className="text-slate-600 font-medium">Envío / Flete</span>
+                            <div className="flex items-center">
+                                <span className="text-slate-500 mr-2 text-xs">$</span>
+                                <input
+                                    type="number"
+                                    min="0"
+                                    step="0.01"
+                                    value={freightCost === 0 ? '' : freightCost}
+                                    onChange={e => setFreightCost(Number(e.target.value))}
+                                    className="w-20 p-1 text-right border border-slate-300 rounded text-sm focus:ring-1 focus:ring-blue-500 outline-none"
+                                    placeholder="0.00"
+                                />
+                            </div>
+                        </div>
+                        {/* ---------------------------- */}
+
                          {paymentMethod === 'credito' && (
-                            <div className="flex justify-between text-blue-600">
+                            <div className="flex justify-between text-blue-600 pt-1 border-t border-slate-100">
                                 <span className="">Recargo Tarjeta</span>
                                 <span className="font-medium">+ ${surcharge.toFixed(2)}</span>
                             </div>
@@ -272,7 +303,6 @@ const PointOfSale: React.FC = () => {
                     ))}
                 </div>
 
-                {/* SECCIÓN DE TARJETA DE CRÉDITO */}
                 {paymentMethod === 'credito' && (
                     <div className="p-4 border-t bg-blue-50 space-y-3 animate-in fade-in">
                         <label className="text-sm font-medium text-slate-700 block">Plan de Financiación</label>
